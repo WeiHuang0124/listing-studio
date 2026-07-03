@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>圖文生成室 AI · Gemini 出圖版</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#22252A">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="圖文生成室">
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});</script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{
+  --bg:#F4F3EF; --panel:#FFF; --ink:#22252A; --ink-2:#5A5F68; --line:#E4E2DB;
+  --accent:#E8552F; --accent-soft:#FBE9E2; --ok:#2E7D52; --ok-soft:#E4F1E9;
+  --mono:'JetBrains Mono',monospace; --sans:'Noto Sans TC',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);height:100dvh;display:flex;flex-direction:column}
+header{background:var(--panel);border-bottom:1px solid var(--line);padding:12px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand h1{font-size:17px;font-weight:900;letter-spacing:.05em;display:inline}
+.brand span{font-size:11px;color:var(--ink-2);font-family:var(--mono);margin-left:8px}
+.hright{margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.rail{display:flex;gap:4px}
+.dot{width:20px;height:20px;border-radius:6px;border:1px solid var(--line);background:#fff;font-size:9px;font-family:var(--mono);display:flex;align-items:center;justify-content:center;color:var(--ink-2)}
+.dot.done{background:var(--ink);border-color:var(--ink);color:#fff}
+#keyBtn{font-size:12px;font-weight:700;border:1.5px solid var(--ink);background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-family:var(--sans)}
+#keyBtn.ok{border-color:var(--ok);color:var(--ok);background:var(--ok-soft)}
+#clearKeyBtn{font-size:12px;font-weight:700;border:1.5px solid var(--line);background:#fff;color:var(--ink-2);border-radius:8px;padding:6px 12px;cursor:pointer;font-family:var(--sans)}
+#clearKeyBtn:hover{border-color:var(--accent);color:var(--accent)}
+/* plan cards */
+.plans{display:flex;flex-direction:column;gap:10px;margin-left:42px;max-width:94%}
+.pcard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.pcard .top{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.pcard .n{font-family:var(--mono);font-size:11px;font-weight:600;background:var(--ink);color:#fff;border-radius:5px;padding:2px 8px}
+.pcard h3{font-size:14.5px;font-weight:900;flex:1}
+.pcard .goal{font-size:12.5px;color:var(--ink-2)}
+.pcard .cp{margin-top:8px;background:#F8F7F4;border:1px dashed var(--line);border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.7}
+.pcard .cp .h{font-weight:900;font-size:15px}
+.pcard .cp .s{color:var(--accent);font-weight:700}
+.pcard details{margin-top:8px;font-size:12px;color:var(--ink-2)}
+.pcard details pre{white-space:pre-wrap;font-family:var(--sans);background:#F6F5F1;border-radius:8px;padding:8px 10px;margin-top:6px;line-height:1.6}
+/* per-image revision input */
+.fix{display:flex;gap:6px;padding:0 12px 12px}
+.fix input{flex:1;border:1.5px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12.5px;font-family:var(--sans);min-width:0}
+.fix input:focus{outline:none;border-color:var(--accent)}
+.fix button{font-size:12px;font-weight:700;border:none;background:var(--accent);color:#fff;border-radius:8px;padding:0 14px;cursor:pointer;font-family:var(--sans);flex-shrink:0}
+.fix button:hover{background:#C9401F}
+.fix button:disabled{background:#D8D5CC}
+select{font-size:12px;font-weight:700;border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;font-family:var(--sans);background:#fff}
+#chat{flex:1;overflow-y:auto;padding:22px 16px 12px;display:flex;flex-direction:column;gap:14px;max-width:900px;width:100%;margin:0 auto}
+.msg{display:flex;gap:10px;max-width:94%}
+.msg.user{align-self:flex-end;flex-direction:row-reverse}
+.avatar{width:32px;height:32px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900}
+.msg.bot .avatar{background:var(--ink);color:#fff}
+.msg.user .avatar{background:var(--accent);color:#fff}
+.bubble{padding:12px 15px;border-radius:14px;font-size:14px;line-height:1.75;white-space:pre-wrap;word-break:break-word}
+.msg.bot .bubble{background:#fff;border:1px solid var(--line);border-top-left-radius:4px}
+.msg.user .bubble{background:var(--ink);color:#fff;border-top-right-radius:4px}
+.bubble b{color:var(--accent)} .msg.user .bubble b{color:#FFB49C}
+.bubble img.upl{max-width:130px;border-radius:8px;display:inline-block;margin:6px 6px 0 0}
+.bubble input.keyin{width:100%;margin-top:8px;border:1.5px solid var(--line);border-radius:8px;padding:9px 12px;font-family:var(--mono);font-size:12px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-left:42px}
+.chip{background:#fff;border:1.5px solid var(--ink);border-radius:99px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans)}
+.chip:hover{background:var(--ink);color:#fff}
+.chip.acc{border-color:var(--accent);color:var(--accent)}
+.chip.acc:hover{background:var(--accent);color:#fff}
+.typing{display:inline-flex;gap:4px;padding:4px 0}
+.typing i{width:6px;height:6px;background:var(--ink-2);border-radius:50%;animation:tp 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes tp{0%,100%{opacity:.25}50%{opacity:1;transform:translateY(-3px)}}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-left:42px}
+.gcard{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.gcard .imgwrap{aspect-ratio:1;background:#F0EFEA;position:relative}
+.gcard img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}
+.gcard .loading{position:absolute;inset:0;display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center;font-size:12px;color:var(--ink-2)}
+.spinner{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.gcard .meta{padding:10px 12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.gcard .meta .n{font-family:var(--mono);font-size:11px;font-weight:600;background:var(--ink);color:#fff;border-radius:5px;padding:1px 7px}
+.gcard .meta .t{font-size:13px;font-weight:700;flex:1}
+.gbtn{font-size:11px;font-weight:700;border:1.5px solid var(--ink);background:#fff;border-radius:7px;padding:4px 9px;cursor:pointer;font-family:var(--sans)}
+.gbtn:hover{background:var(--ink);color:#fff}
+.gcard details{padding:0 12px 10px;font-size:11.5px;color:var(--ink-2)}
+.gcard details pre{white-space:pre-wrap;font-family:var(--sans);background:#F6F5F1;border-radius:8px;padding:8px 10px;margin-top:6px;line-height:1.6}
+.cardbtns{display:flex;gap:8px;flex-wrap:wrap;margin-left:42px}
+.mini{font-size:13px;font-weight:700;border-radius:9px;padding:9px 18px;cursor:pointer;border:1.5px solid var(--ink);background:#fff;font-family:var(--sans)}
+.mini:hover{background:var(--ink);color:#fff}
+.mini.fill{background:var(--accent);border-color:var(--accent);color:#fff}
+.mini.fill:hover{background:#C9401F}
+#bar{background:var(--panel);border-top:1px solid var(--line);padding:12px 16px}
+.barin{max-width:900px;margin:0 auto;display:flex;gap:10px;align-items:flex-end}
+#photoBtn{height:42px;padding:0 14px;border-radius:12px;border:1.5px dashed var(--ink-2);background:#fff;cursor:pointer;font-size:13px;font-weight:700;flex-shrink:0;font-family:var(--sans)}
+#photoBtn.has{border-style:solid;border-color:var(--ok);background:var(--ok-soft)}
+textarea{flex:1;resize:none;border:1.5px solid var(--line);border-radius:12px;padding:11px 14px;font-family:var(--sans);font-size:14px;line-height:1.6;max-height:160px}
+textarea:focus{outline:none;border-color:var(--accent)}
+#send{width:42px;height:42px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-size:17px;cursor:pointer;flex-shrink:0}
+.hint{max-width:900px;margin:6px auto 0;font-size:11px;color:var(--ink-2);text-align:center}
+#lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:99;cursor:zoom-out}
+#lightbox img{max-width:92vw;max-height:92vh;border-radius:8px}
+@media(max-width:640px){.gallery{margin-left:0}.chips{margin-left:0}.cardbtns{margin-left:0}.dot{width:16px;height:16px}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><h1>圖文生成室 AI</h1><span>GEMINI NANO BANANA · 真 AI 出圖</span></div>
+  <div class="hright">
+    <select id="modelSel">
+      <option value="gemini-3.1-flash-image">NB2 標準（約NT$2/張・推薦）</option>
+      <option value="gemini-3.1-flash-lite-image">NB2 Lite（約NT$1/張・最省）</option>
+      <option value="gemini-3-pro-image">NB Pro（約NT$4~8/張・最精）</option>
+      <option value="gemini-2.5-flash-image">NB1 原版（人少不塞車・備用）</option>
+    </select>
+    <button id="keyBtn">🔑 設定 API Key</button>
+    <button id="clearKeyBtn" title="從這台電腦移除已儲存的 Key">🗑️ 清除 Key</button>
+    <div class="rail" id="rail"></div>
+  </div>
+</header>
+
+<div id="chat"></div>
+
+<div id="bar">
+  <div class="barin">
+    <button id="photoBtn">📷 商品照 <span id="pc">0</span>/3</button>
+    <input type="file" id="photoInput" accept="image/*" multiple hidden>
+    <textarea id="input" rows="1" placeholder="輸入訊息…"></textarea>
+    <button id="send">➤</button>
+  </div>
+  <div class="hint">本工具直接呼叫 Google Gemini API 出圖 · 費用依所選模型計，10 張全套約 NT$10~30 · 請下載本檔案後用瀏覽器開啟（Claude 預覽內無法連外部 API）</div>
+</div>
+
+<div id="lightbox" onclick="this.style.display='none'"><img id="lbimg"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const chat=$('#chat'), input=$('#input');
+const TEXT_MODEL='gemini-2.5-flash';
+const state={stage:'key',key:'',product:'',photos:[],summary:null,style:null,prompts:[],imgs:{}};
+const IMG_TITLES={1:'痛點鉤子圖',2:'產品登場圖',3:'賣點圖一',4:'賣點圖二',5:'賣點圖三',6:'競品對比圖',7:'使用方法圖',8:'客群情境圖',9:'信任背書圖',10:'規格行動圖'};
+
+/* environment check: Claude artifact preview blocks external APIs */
+const IN_CLAUDE=/claude|anthropic|usercontent/i.test(location.hostname)||location.protocol==='blob:';
+/* key policy: 每台電腦第一次設定後記住（存於該電腦瀏覽器 localStorage），可隨時手動清除 */
+const store={get k(){try{return localStorage.getItem('gk')||''}catch(e){return state._k||''}},
+  set k(v){try{v?localStorage.setItem('gk',v):localStorage.removeItem('gk')}catch(e){state._k=v}}};
+
+/* rail */
+const dots=[];for(let i=1;i<=10;i++){const d=document.createElement('div');d.className='dot';d.textContent=i;$('#rail').appendChild(d);dots.push(d);}
+const rail=()=>Object.keys(state.imgs).forEach(n=>dots[n-1].classList.add('done'));
+
+/* chat helpers */
+function addMsg(role,html,imgs){
+  const m=document.createElement('div');m.className='msg '+role;
+  m.innerHTML=`<div class="avatar">${role==='bot'?'圖':'我'}</div><div class="bubble">${html}${(imgs||[]).map(s=>`<img class="upl" src="${s}">`).join('')}</div>`;
+  chat.appendChild(m);chat.scrollTop=chat.scrollHeight;return m;
+}
+function addChips(list){
+  const c=document.createElement('div');c.className='chips';
+  list.forEach(o=>{const b=document.createElement('button');b.className='chip'+(o.acc?' acc':'');b.textContent=o.label;
+    b.onclick=()=>{c.remove();o.fn();};c.appendChild(b);});
+  chat.appendChild(c);chat.scrollTop=chat.scrollHeight;
+}
+const typing=t=>{const m=addMsg('bot',(t||'')+'<span class="typing"><i></i><i></i><i></i></span>');return()=>m.remove();};
+const esc=s=>(s??'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;');
+
+/* ============ Gemini API ============ */
+const EP=m=>`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`;
+const TEXT_FALLBACKS=['gemini-2.5-flash','gemini-2.5-flash-lite','gemini-2.0-flash'];
+const isOverload=msg=>/high demand|overloaded|try again|503|429|RESOURCE_EXHAUSTED|UNAVAILABLE/i.test(msg||'');
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+async function gemCall(model,body,onWait){
+  const waits=[3000,8000,15000];
+  for(let i=0;i<=waits.length;i++){
+    const res=await fetch(EP(model),{method:'POST',
+      headers:{'Content-Type':'application/json','x-goog-api-key':state.key},
+      body:JSON.stringify(body)});
+    const data=await res.json();
+    if(!data.error)return data;
+    if(isOverload(data.error.message)&&i<waits.length){
+      if(onWait)onWait(`伺服器忙碌，${waits[i]/1000} 秒後自動重試（${i+1}/3）…`);
+      await sleep(waits[i]);continue;
+    }
+    throw new Error(data.error.message);
+  }
+}
+
+async function gemText(sys,userText,photos){
+  const parts=(photos||[]).map(p=>({inline_data:{mime_type:p.mime,data:p.b64}}));
+  parts.push({text:userText});
+  const body={system_instruction:{parts:[{text:sys}]},
+      contents:[{role:'user',parts}],
+      generationConfig:{responseMimeType:'application/json',temperature:0.8}};
+  let lastErr;
+  for(const m of TEXT_FALLBACKS){
+    try{
+      const data=await gemCall(m,body);
+      const text=data.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('')||'';
+      return JSON.parse(text.replace(/```json|```/g,'').trim());
+    }catch(e){lastErr=e;if(!isOverload(e.message))throw e;}
+  }
+  throw lastErr;
+}
+
+async function gemImage(prompt,onWait){
+  const parts=state.photos.map(p=>({inline_data:{mime_type:p.mime,data:p.b64}}));
+  parts.push({text:prompt});
+  const data=await gemCall($('#modelSel').value,{contents:[{role:'user',parts}],
+      generationConfig:{responseModalities:['IMAGE'],imageConfig:{aspectRatio:'1:1'}}},onWait);
+  const img=data.candidates?.[0]?.content?.parts?.find(p=>p.inline_data||p.inlineData);
+  if(!img)throw new Error('模型未回傳圖片，請重試');
+  const d=img.inline_data||img.inlineData;
+  return `data:${d.mime_type||d.mimeType||'image/png'};base64,${d.data}`;
+}
+
+/* ============ FLOW ============ */
+if(IN_CLAUDE){
+  addMsg('bot',`🚫 <b>偵測到你正在 Claude 預覽視窗內執行</b>\n\nClaude 的預覽環境會封鎖所有外部 API 連線（包含 Google Gemini），所以一定會出現「Failed to fetch」。\n\n<b>正確使用方式：</b>\n1. 點右上角下載按鈕，把這個 HTML 檔存到電腦\n2. 對檔案按兩下，用 Chrome / Edge 開啟\n3. 在瀏覽器裡貼 Key 就能正常出圖\n\n（或部署到 Vercel 變成網址，手機也能用）`);
+}
+function askKey(){
+  const m=addMsg('bot',`歡迎使用<b>真 AI 出圖版</b> 🍌\n\n第一次使用請貼上你的 <b>Google Gemini API Key</b>（到 aistudio.google.com → Get API Key 免費申請）。\n\n🔒 Key 只儲存在<b>這台電腦的瀏覽器</b>裡（設定一次即記住），不會存進檔案、也不會上傳到任何地方；右上角 🗑️ 可隨時清除。`);
+  const inp=document.createElement('input');inp.className='keyin';inp.type='password';inp.placeholder='AIza...';
+  m.querySelector('.bubble').appendChild(inp);
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&inp.value.trim())setKey(inp.value.trim());});
+}
+async function setKey(k){
+  state.key=k;
+  const stop=typing('測試連線中');
+  try{
+    const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=1`,{headers:{'x-goog-api-key':k}});
+    const d=await res.json();stop();
+    if(d.error)throw new Error(d.error.message);
+    store.k=k;
+    $('#keyBtn').classList.add('ok');$('#keyBtn').textContent='🔑 Key 已設定';
+    state.stage='collect';
+    addMsg('bot',`連線測試成功，Key 有效 ✅\n\n接下來三步：\n<b>①</b> 貼商品資料＋上傳 1~3 張商品照（左下角 📷，AI 會以照片為基準保持包裝一致）\n<b>②</b> 我整理賣點，你選風格\n<b>③</b> Nano Banana 直接生成 10 張 1:1 商品描述圖，可逐張重生、打包 ZIP\n\n請貼上：商品名稱／簡介／主要賣點／售價規格`);
+  }catch(e){stop();
+    if(e.message.includes('fetch')){
+      addMsg('bot',IN_CLAUDE
+        ?`🚫 連線被封鎖——你目前在 <b>Claude 預覽環境</b>，外部 API 無法使用。請<b>下載本檔案</b>後用 Chrome 開啟再試。`
+        :`⚠️ 連不上 Google API。請確認：\n1. 網路正常、沒有擋 googleapis.com 的防火牆/擴充功能\n2. 若用公司網路，換手機熱點試試`);
+    }else{
+      addMsg('bot',`⚠️ Key 驗證失敗：${esc(e.message)}\n\n請到 aistudio.google.com 確認 Key 是否正確、有啟用。`);
+      state.stage='key';
+    }
+  }
+}
+$('#keyBtn').onclick=()=>{const k=prompt('貼上 Gemini API Key：',state.key);if(k){setKey(k.trim());}};
+$('#clearKeyBtn').onclick=()=>{
+  if(!confirm('確定要從這台電腦清除已儲存的 API Key？'))return;
+  store.k='';state.key='';
+  $('#keyBtn').classList.remove('ok');$('#keyBtn').textContent='🔑 設定 API Key';
+  state.stage='key';
+  addMsg('bot','🗑️ 已清除這台電腦上儲存的 Key。');
+  askKey();
+};
+if(store.k){state.key=store.k;$('#keyBtn').classList.add('ok');$('#keyBtn').textContent='🔑 Key 已設定';state.stage='collect';
+  addMsg('bot',`嗨，歡迎回來！這台電腦已設定過 Key，直接開始 ✅\n\n請貼上商品資料（名稱／簡介／賣點／規格），並用左下角 📷 上傳 1~3 張商品照。\n（右上角 🗑️ 可隨時清除這台電腦儲存的 Key）`);
+}else askKey();
+
+/* photos */
+$('#photoBtn').onclick=()=>$('#photoInput').click();
+$('#photoInput').onchange=e=>{
+  [...e.target.files].slice(0,3-state.photos.length).forEach(f=>{
+    const r=new FileReader();
+    r.onload=()=>{state.photos.push({src:r.result,mime:f.type,b64:r.result.split(',')[1]});
+      $('#pc').textContent=state.photos.length;$('#photoBtn').classList.add('has');
+      addMsg('user','（已上傳商品照）',[r.result]);};
+    r.readAsDataURL(f);
+  });
+  e.target.value='';
+};
+
+/* send */
+input.addEventListener('input',()=>{input.style.height='auto';input.style.height=Math.min(input.scrollHeight,160)+'px';});
+input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();handleSend();}});
+$('#send').onclick=handleSend;
+function handleSend(){
+  const t=input.value.trim();if(!t)return;
+  input.value='';input.style.height='auto';
+  addMsg('user',esc(t));
+  if(state.stage==='key'){setKey(t);}
+  else if(state.stage==='collect'){state.product=t;runAnalyze();}
+  else if(state.stage==='plan'||state.stage==='free')runFree(t);
+}
+
+/* stage: analyze */
+async function runAnalyze(){
+  state.stage='busy';const stop=typing();
+  try{
+    const sys=`你是台灣蝦皮電商資深圖文企劃。分析商品資料與照片，只回傳 JSON：
+{"name":"商品名(10字內)","summary":"一句話定位(24字內)","points":["賣點"](4-6個,各10字內),"audience":"客群(16字內)","styles":[{"id":"A","name":"風格名(6字內)","desc":"視覺描述(20字內,含色調/材質/氛圍)"},{"id":"B"},{"id":"C"}]}
+styles 要依商品屬性客製三種攝影/設計風格方向。`;
+    const r=await gemText(sys,'商品資料：\n'+state.product,state.photos);
+    state.summary=r;stop();
+    addMsg('bot',`收到！\n\n<b>${esc(r.name)}</b>｜${esc(r.summary)}\n<b>賣點</b>：${r.points.map(esc).join('、')}\n<b>客群</b>：${esc(r.audience)}\n\n選一個視覺風格，選完直接開始出圖（10 張，約 1~3 分鐘）：`);
+    addChips(r.styles.map(s=>({label:`${s.id}｜${s.name}`,acc:true,fn:()=>{state.style=s;addMsg('user','選 '+s.name);runPrompts();}})));
+    state.stage='idle';
+  }catch(e){stop();fail(e,runAnalyze);}
+}
+
+/* stage: build 10 prompts */
+const FRAME=`10張圖固定任務：1痛點鉤子(大字提問+情境) 2產品登場(主視覺+品名+定位句) 3~5三大賣點(每張一賣點,大標+短說明+視覺隱喻) 6競品對比(雙欄表格,我方vs一般) 7使用方法(3步驟) 8適合客群(四類人) 9品質承諾(勾選清單+證書感邊框) 10規格表+促購行動呼籲`;
+
+async function runPrompts(){
+  state.stage='busy';const stop=typing('正在撰寫 10 張圖的文案與提示詞');
+  try{
+    const base=`你是 Nano Banana 提示詞專家，為蝦皮商品描述圖寫「圖像生成提示詞」。
+商品：${JSON.stringify({...state.summary,styles:undefined})}。視覺風格：${state.style.name}（${state.style.desc}）。${FRAME}
+提示詞規則：繁體中文撰寫；明確描述版面配置(構圖位置)、背景與氛圍、以及圖上要渲染的「確切文字內容」(用引號標出,主標≤12字副標≤18字,字要大而清晰易讀)；每張都註明「以參考圖中的商品為主體，完全保持包裝外觀、顏色、文字細節一致，不得改變包裝設計」；正方形1:1電商商品圖，整套10張需色調與設計語言一致。`;
+    const mk=r=>`${base}\n只回傳 JSON：{"prompts":[{"no":編號,"goal":"這張圖的任務說明(16字內)","h":"圖上主標(12字內)","s":"圖上副標(18字內)","p":"完整提示詞(150字內)"}]}，本次撰寫第${r}張。`;
+    const [b1,b2]=await Promise.all([gemText(mk('1~5'),'寫第1~5張'),gemText(mk('6~10'),'寫第6~10張')]);
+    state.prompts=[...b1.prompts,...b2.prompts].sort((a,b)=>a.no-b.no);
+    stop();
+    showPlan();
+  }catch(e){stop();fail(e,runPrompts);}
+}
+
+/* stage: show plan for review before spending on generation */
+function showPlan(){
+  addMsg('bot',`10 張圖的<b>文案與提示詞企劃</b>完成 📋 出圖前請先過目（這一步<b>還沒開始扣費</b>）：`);
+  const wrap=document.createElement('div');wrap.className='plans';
+  state.prompts.forEach(p=>{
+    wrap.insertAdjacentHTML('beforeend',`<div class="pcard" id="pc${p.no}">
+      <div class="top"><span class="n">${String(p.no).padStart(2,'0')}</span><h3>${IMG_TITLES[p.no]}</h3><span class="goal">${esc(p.goal||'')}</span></div>
+      <div class="cp"><div class="h">${esc(p.h||'')}</div><div class="s">${esc(p.s||'')}</div></div>
+      <details><summary>完整提示詞</summary><pre id="plan-pp${p.no}">${esc(p.p)}</pre></details></div>`);
+  });
+  chat.appendChild(wrap);chat.scrollTop=chat.scrollHeight;
+  addMsg('bot',`要調整任何一張，直接打字告訴我，例如「<b>第 4 張主標改成強調 24H 除臭</b>」，我會即時更新企劃。\n\n確認沒問題就按下面開始出圖（10 張，使用 <b>${$('#modelSel').selectedOptions[0].text}</b>，右上角可換模型）：`);
+  addChips([{label:'🍌 確認企劃，開始生成 10 張圖',acc:true,fn:()=>{addMsg('user','確認，開始出圖');renderGallery();}}]);
+  state.stage='plan';
+}
+
+/* stage: generate images */
+async function renderGallery(){
+  state.stage='busy';
+  const g=document.createElement('div');g.className='gallery';
+  state.prompts.forEach(p=>{
+    g.insertAdjacentHTML('beforeend',`<div class="gcard" id="g${p.no}">
+      <div class="imgwrap"><div class="loading"><div class="spinner"></div>排隊中…</div></div>
+      <div class="meta"><span class="n">${String(p.no).padStart(2,'0')}</span><span class="t">${IMG_TITLES[p.no]}</span>
+      <button class="gbtn" onclick="dl(${p.no})">下載</button><button class="gbtn" onclick="regen(${p.no})">重抽</button></div>
+      <div class="fix"><input id="fx${p.no}" placeholder="輸入修改需求，例如：留白不要太多" onkeydown="if(event.key==='Enter')reviseOne(${p.no})"><button onclick="reviseOne(${p.no})">修改</button></div>
+      <details><summary>提示詞</summary><pre id="pp${p.no}">${esc(p.p)}</pre></details></div>`);
+  });
+  chat.appendChild(g);chat.scrollTop=chat.scrollHeight;
+  for(const p of state.prompts)await genOne(p.no);
+  const btns=document.createElement('div');btns.className='cardbtns';
+  btns.innerHTML=`<button class="mini fill" onclick="dlZip(this)">📦 打包下載全部（ZIP）</button>`;
+  chat.appendChild(btns);
+  addMsg('bot','全部完成 ✅\n\n・每張圖下方有<b>修改輸入框</b>：輸入需求（例如「留白不要太多」「主標改紅色」「商品放大一點」）按修改或 Enter，會依需求改寫提示詞後<b>自動重新出圖</b>\n・「重抽」＝同提示詞再抽一次（純看運氣換構圖）\n・點圖可放大檢視');
+  chat.scrollTop=chat.scrollHeight;
+  state.stage='free';
+}
+
+/* per-image precise revision */
+window.reviseOne=async no=>{
+  const inp=$('#fx'+no);
+  const req=inp.value.trim();
+  if(!req){inp.focus();return;}
+  const btn=inp.nextElementSibling;btn.disabled=true;btn.textContent='修改中';
+  const card=$('#g'+no);
+  card.querySelector('.imgwrap').innerHTML=`<div class="loading"><div class="spinner"></div>依需求改寫提示詞…</div>`;
+  try{
+    const p=state.prompts.find(x=>x.no===no);
+    const sys=`你是 Nano Banana 提示詞專家。這是第${no}張蝦皮商品描述圖（${IMG_TITLES[no]}）的現有提示詞：
+${p.p}
+使用者對此圖的修改需求：「${req}」
+請針對需求精準改寫提示詞：只調整與需求相關的部分，其餘版面任務、文字內容、風格、以及「以參考圖商品為主體、保持包裝完全一致」的規則全部保留。只回傳 JSON：{"p":"改寫後的完整提示詞"}`;
+    const r=await gemText(sys,'請改寫');
+    p.p=r.p;
+    const pre=$('#pp'+no);if(pre)pre.textContent=r.p;
+    inp.value='';
+    await genOne(no);
+  }catch(e){
+    card.querySelector('.imgwrap').innerHTML=`<div class="loading">⚠️ ${esc(e.message).slice(0,60)}<button class="gbtn" onclick="genOne(${no})">重試</button></div>`;
+  }
+  btn.disabled=false;btn.textContent='修改';
+};
+async function genOne(no){
+  const card=$('#g'+no);
+  const setLoad=t=>card.querySelector('.imgwrap').innerHTML=`<div class="loading"><div class="spinner"></div>${esc(t)}</div>`;
+  setLoad('生成中…');
+  try{
+    const p=state.prompts.find(x=>x.no===no);
+    const url=await gemImage(p.p,setLoad);
+    state.imgs[no]=url;rail();
+    card.querySelector('.imgwrap').innerHTML=`<img src="${url}" onclick="lb('${no}')">`;
+  }catch(e){
+    card.querySelector('.imgwrap').innerHTML=`<div class="loading">⚠️ ${esc(e.message).slice(0,60)}<button class="gbtn" onclick="genOne(${no})">重試</button></div>`;
+  }
+}
+window.regen=no=>genOne(no);
+window.lb=no=>{$('#lbimg').src=state.imgs[no];$('#lightbox').style.display='flex';};
+
+/* downloads */
+window.dl=no=>{const a=document.createElement('a');a.href=state.imgs[no];a.download=`${String(no).padStart(2,'0')}_${IMG_TITLES[no]}.png`;a.click();};
+window.dlZip=async btn=>{
+  btn.textContent='打包中…';
+  const zip=new JSZip();
+  Object.entries(state.imgs).forEach(([no,d])=>zip.file(`${String(no).padStart(2,'0')}_${IMG_TITLES[no]}.png`,d.split(',')[1],{base64:true}));
+  const blob=await zip.generateAsync({type:'blob'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`${state.summary?.name||'商品'}_描述圖10張.zip`;a.click();
+  btn.textContent='📦 打包下載全部（ZIP）';
+};
+
+/* free adjust: plan stage edits the plan; free stage edits prompt then regenerates */
+async function runFree(text){
+  const stop=typing();
+  try{
+    const sys=`你是圖文企劃助理。目前10張圖的企劃（含文案與提示詞）：${JSON.stringify(state.prompts)}。商品：${JSON.stringify({...state.summary,styles:undefined})}。
+使用者要求調整。若是修改某張圖，依要求改寫該張（保留原版面任務與「保持包裝一致」規則），只回傳 JSON：{"action":"update","no":編號,"goal":"任務說明(16字內)","h":"圖上主標(12字內)","s":"圖上副標(18字內)","p":"新的完整提示詞"}
+若只是問題，回傳：{"action":"chat","reply":"回覆(繁中80字內)"}`;
+    const r=await gemText(sys,text);stop();
+    if(r.action==='update'){
+      const p=state.prompts.find(x=>x.no===r.no);
+      Object.assign(p,{goal:r.goal,h:r.h,s:r.s,p:r.p});
+      const planCard=$('#pc'+r.no);
+      if(planCard){
+        planCard.querySelector('.goal').textContent=r.goal;
+        planCard.querySelector('.cp .h').textContent=r.h;
+        planCard.querySelector('.cp .s').textContent=r.s;
+        const pre=$('#plan-pp'+r.no);if(pre)pre.textContent=r.p;
+      }
+      const pre2=$('#pp'+r.no);if(pre2)pre2.textContent=r.p;
+      if(state.stage==='free'&&$('#g'+r.no)){
+        addMsg('bot',`✅ 第 ${r.no} 張已更新，重新出圖中…`);
+        await genOne(r.no);
+        $('#g'+r.no).scrollIntoView({behavior:'smooth',block:'center'});
+      }else{
+        addMsg('bot',`✅ 第 ${r.no} 張企劃已更新（主標：「${esc(r.h)}」）。還要調整其他張嗎？確認後按「開始生成」。`);
+        if(planCard)planCard.scrollIntoView({behavior:'smooth',block:'center'});
+        addChips([{label:'🍌 確認企劃，開始生成 10 張圖',acc:true,fn:()=>{addMsg('user','確認，開始出圖');renderGallery();}}]);
+      }
+    }else addMsg('bot',esc(r.reply));
+  }catch(e){stop();fail(e,()=>runFree(text));}
+}
+
+function fail(err,retry){
+  addMsg('bot',`⚠️ 出了點問題：${esc(err.message)}\n（常見原因：API Key 無效、免費額度用完、或網路問題）`);
+  addChips([{label:'重試',acc:true,fn:retry},{label:'重設 API Key',fn:()=>{state.stage='key';askKey();}}]);
+  state.stage='idle';
+}
+</script>
+</body>
+</html>
