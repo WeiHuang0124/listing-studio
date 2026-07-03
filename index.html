@@ -12,6 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="圖文生成室">
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});</script>
+<script defer src="/_vercel/insights/script.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
@@ -45,6 +46,14 @@ header{background:var(--panel);border-bottom:1px solid var(--line);padding:12px 
 .pcard .cp .s{color:var(--accent);font-weight:700}
 .pcard details{margin-top:8px;font-size:12px;color:var(--ink-2)}
 .pcard details pre{white-space:pre-wrap;font-family:var(--sans);background:#F6F5F1;border-radius:8px;padding:8px 10px;margin-top:6px;line-height:1.6}
+/* main-image option panel */
+.optrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.optlbl{font-size:12px;font-weight:900;color:var(--ink-2);width:58px;flex-shrink:0}
+.optin{flex:1;border:1.5px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;font-family:var(--sans);min-width:120px}
+.optin:focus{outline:none;border-color:var(--accent)}
+.opt{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;background:#F8F7F4;border:1.5px solid var(--line);border-radius:99px;padding:6px 13px;cursor:pointer;user-select:none}
+.opt:has(input:checked){border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.opt input{accent-color:var(--accent);margin:0}
 /* per-image revision input */
 .fix{display:flex;gap:6px;padding:0 12px 12px}
 .fix input{flex:1;border:1.5px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12.5px;font-family:var(--sans);min-width:0}
@@ -101,6 +110,8 @@ textarea{flex:1;resize:none;border:1.5px solid var(--line);border-radius:12px;pa
 textarea:focus{outline:none;border-color:var(--accent)}
 #send{width:42px;height:42px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-size:17px;cursor:pointer;flex-shrink:0}
 .hint{max-width:900px;margin:6px auto 0;font-size:11px;color:var(--ink-2);text-align:center}
+.hint a,.bubble a{color:var(--accent);font-weight:700;text-decoration:none}
+.hint a:hover,.bubble a:hover{text-decoration:underline}
 #lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:99;cursor:zoom-out}
 #lightbox img{max-width:92vw;max-height:92vh;border-radius:8px}
 @media(max-width:640px){.gallery{margin-left:0}.chips{margin-left:0}.cardbtns{margin-left:0}.dot{width:16px;height:16px}}
@@ -132,7 +143,7 @@ textarea:focus{outline:none;border-color:var(--accent)}
     <textarea id="input" rows="1" placeholder="輸入訊息…"></textarea>
     <button id="send">➤</button>
   </div>
-  <div class="hint">本工具直接呼叫 Google Gemini API 出圖 · 費用依所選模型計，10 張全套約 NT$10~30 · 請下載本檔案後用瀏覽器開啟（Claude 預覽內無法連外部 API）</div>
+  <div class="hint">本工具直接呼叫 Google Gemini API 出圖 · 10 張全套約 NT$10~30 · 免費申請 API Key：<a href="https://aistudio.google.com" target="_blank" rel="noopener">aistudio.google.com</a></div>
 </div>
 
 <div id="lightbox" onclick="this.style.display='none'"><img id="lbimg"></div>
@@ -141,7 +152,20 @@ textarea:focus{outline:none;border-color:var(--accent)}
 const $=s=>document.querySelector(s);
 const chat=$('#chat'), input=$('#input');
 const TEXT_MODEL='gemini-2.5-flash';
-const state={stage:'key',key:'',product:'',photos:[],summary:null,style:null,prompts:[],imgs:{}};
+const state={stage:'key',key:'',product:'',model:'',photos:[],summary:null,style:null,prompts:[],imgs:{}};
+
+/* ═══ 使用監測（選填）═══
+   到 Google Apps Script 部署好收集端後，把網址貼進 TRACK_URL（見「監測平台設定說明」）。
+   留空 = 完全不回報。只回報事件計數與費用估算，絕不傳送使用者的商品資料、照片或 Key。 */
+const TRACK_URL='';
+const COST_TWD={'gemini-3.1-flash-image':2,'gemini-3.1-flash-lite-image':1,'gemini-3-pro-image':5,'gemini-2.5-flash-image':1.5,'text':0.05};
+const SID=(()=>{try{let s=localStorage.getItem('sid');if(!s){s=Math.random().toString(36).slice(2,10);localStorage.setItem('sid',s);}return s;}catch(e){return 'anon'}})();
+function track(event,model,n){
+  if(!TRACK_URL)return;
+  try{fetch(TRACK_URL,{method:'POST',mode:'no-cors',keepalive:true,
+    body:JSON.stringify({sid:SID,event,model:model||'',n:n||1,cost:+((COST_TWD[model]||0)*(n||1)).toFixed(2),ua:navigator.userAgent.slice(0,60)})});}catch(e){}
+}
+track('visit');
 const IMG_TITLES={1:'痛點鉤子圖',2:'產品登場圖',3:'賣點圖一',4:'賣點圖二',5:'賣點圖三',6:'競品對比圖',7:'使用方法圖',8:'客群情境圖',9:'信任背書圖',10:'規格行動圖'};
 
 /* environment check: Claude artifact preview blocks external APIs */
@@ -192,6 +216,7 @@ async function gemCall(model,body,onWait){
 }
 
 async function gemText(sys,userText,photos){
+  track('text','text',1);
   const parts=(photos||[]).map(p=>({inline_data:{mime_type:p.mime,data:p.b64}}));
   parts.push({text:userText});
   const body={system_instruction:{parts:[{text:sys}]},
@@ -224,7 +249,7 @@ if(IN_CLAUDE){
   addMsg('bot',`🚫 <b>偵測到你正在 Claude 預覽視窗內執行</b>\n\nClaude 的預覽環境會封鎖所有外部 API 連線（包含 Google Gemini），所以一定會出現「Failed to fetch」。\n\n<b>正確使用方式：</b>\n1. 點右上角下載按鈕，把這個 HTML 檔存到電腦\n2. 對檔案按兩下，用 Chrome / Edge 開啟\n3. 在瀏覽器裡貼 Key 就能正常出圖\n\n（或部署到 Vercel 變成網址，手機也能用）`);
 }
 function askKey(){
-  const m=addMsg('bot',`歡迎使用<b>真 AI 出圖版</b> 🍌\n\n第一次使用請貼上你的 <b>Google Gemini API Key</b>（到 aistudio.google.com → Get API Key 免費申請）。\n\n🔒 Key 只儲存在<b>這台電腦的瀏覽器</b>裡（設定一次即記住），不會存進檔案、也不會上傳到任何地方；右上角 🗑️ 可隨時清除。`);
+  const m=addMsg('bot',`歡迎使用<b>真 AI 出圖版</b> 🍌\n\n第一次使用請貼上你的 <b>Google Gemini API Key</b>\n👉 <a href="https://aistudio.google.com" target="_blank" rel="noopener">點此前往 aistudio.google.com 免費申請</a>（登入 Google → Get API Key → Create API Key → 複製）\n\n🔒 Key 只儲存在<b>這台電腦的瀏覽器</b>裡（設定一次即記住），不會存進檔案、也不會上傳到任何地方；右上角 🗑️ 可隨時清除。`);
   const inp=document.createElement('input');inp.className='keyin';inp.type='password';inp.placeholder='AIza...';
   m.querySelector('.bubble').appendChild(inp);
   inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&inp.value.trim())setKey(inp.value.trim());});
@@ -261,7 +286,7 @@ $('#clearKeyBtn').onclick=()=>{
   askKey();
 };
 if(store.k){state.key=store.k;$('#keyBtn').classList.add('ok');$('#keyBtn').textContent='🔑 Key 已設定';state.stage='collect';
-  addMsg('bot',`嗨，歡迎回來！這台電腦已設定過 Key，直接開始 ✅\n\n請貼上商品資料（名稱／簡介／賣點／規格），並用左下角 📷 上傳 1~3 張商品照。\n（右上角 🗑️ 可隨時清除這台電腦儲存的 Key）`);
+  addMsg('bot',`嗨，歡迎回來！這台電腦已設定過 Key，直接開始 ✅\n\n請貼上商品資料（名稱／簡介／賣點／規格），並用左下角 📷 上傳 1~3 張商品照。\n上傳照片後也可以直接製作<b>白底主圖</b>。\n（右上角 🗑️ 可隨時清除這台電腦儲存的 Key）`);
 }else askKey();
 
 /* photos */
@@ -271,10 +296,107 @@ $('#photoInput').onchange=e=>{
     const r=new FileReader();
     r.onload=()=>{state.photos.push({src:r.result,mime:f.type,b64:r.result.split(',')[1]});
       $('#pc').textContent=state.photos.length;$('#photoBtn').classList.add('has');
-      addMsg('user','（已上傳商品照）',[r.result]);};
+      addMsg('user','（已上傳商品照）',[r.result]);
+      if(!state.mainOffered&&state.key){state.mainOffered=true;
+        addMsg('bot','照片收到！除了 10 張描述圖，我也可以先幫你做<b>白底主圖</b>（自動辨識商品主體、去背、置中白底，符合蝦皮主圖規範）：');
+        addChips([{label:'🖼️ 製作白底主圖',acc:true,fn:mainImageFlow},{label:'先不用，繼續流程',fn:()=>{}}]);
+      }};
     r.readAsDataURL(f);
   });
   e.target.value='';
+};
+
+/* ============ 白底主圖（主體辨識＋風格勾選） ============ */
+state.mains={};state.mainSeq=0;state.subject=null;
+async function mainImageFlow(){
+  if(!state.photos.length){addMsg('bot','請先用左下角 📷 上傳商品照。');return;}
+  const stop=typing('辨識照片中的商品主體');
+  try{
+    const sys=`你是電商攝影棚的修圖師。判斷參考照片中「要販售的商品主體」是什麼——注意：寵物、人物、家具、地板、背景等通常是干擾物而非商品（例如貓坐在不鏽鋼盆裡，商品主體是不鏽鋼盆）。只回傳 JSON：
+{"subject":"商品主體名稱(10字內)","distractors":["照片中需移除的干擾物"(0-5項)],"note":"判斷依據一句話(20字內)"}`;
+    const r=await gemText(sys,'請辨識商品主體',state.photos);stop();
+    state.subject=r;
+    showMainPanel(r);
+  }catch(e){stop();fail(e,mainImageFlow);}
+}
+function showMainPanel(r){
+  addMsg('bot',`偵測結果：商品主體是「<b>${esc(r.subject)}</b>」${r.distractors?.length?`，將移除干擾物：${r.distractors.map(esc).join('、')}`:''}。\n（${esc(r.note||'')}）\n\n主體判斷有誤可直接修改欄位，勾選想要的風格後生成：`);
+  const wrap=document.createElement('div');wrap.className='plans';
+  wrap.innerHTML=`<div class="pcard" id="mainPanel">
+    <div class="top"><span class="n">主圖</span><h3>白底主圖設定</h3></div>
+    <div class="optrow"><span class="optlbl">商品主體</span><input id="opSubject" class="optin" value="${esc(r.subject)}"></div>
+    <div class="optrow"><span class="optlbl">背景</span>
+      <label class="opt"><input type="radio" name="opBg" value="white" checked>純白底（蝦皮規範）</label>
+      <label class="opt"><input type="radio" name="opBg" value="studio">淺灰棚拍感</label></div>
+    <div class="optrow"><span class="optlbl">效果</span>
+      <label class="opt"><input type="checkbox" id="opShadow" checked>主體自然陰影</label>
+      <label class="opt"><input type="checkbox" id="opReflect">淡淡倒影</label>
+      <label class="opt"><input type="checkbox" id="opTitle">加賣點主標</label></div>
+    <div class="cardbtns" style="margin:10px 0 0"><button class="mini fill" onclick="genMainFromPanel()">🖼️ 生成主圖</button></div>
+  </div>`;
+  chat.appendChild(wrap);chat.scrollTop=chat.scrollHeight;
+}
+window.genMainFromPanel=async()=>{
+  const subject=$('#opSubject').value.trim()||'商品';
+  const bg=document.querySelector('input[name="opBg"]:checked').value;
+  const shadow=$('#opShadow').checked,reflect=$('#opReflect').checked,title=$('#opTitle').checked;
+  const dis=state.subject?.distractors?.length?state.subject.distractors.join('、')+'、':'';
+  const p=`任務：電商主圖。商品主體：「${subject}」。從參考圖中精準辨識並擷取此商品主體，徹底移除畫面中的所有干擾物（${dis}寵物、人物、雜物）與原始背景，畫面中只保留商品本身。將商品置於${bg==='white'?'純白色(#FFFFFF)、無雜訊無漸層的':'淺灰色攝影棚柔和漸層'}背景正中央，商品佔畫面約80%，完全保持商品的外觀、材質、顏色與細節一致，不得改變商品設計。專業商品攝影質感：光線均勻明亮、邊緣乾淨銳利。${shadow?'商品底部加上自然柔和的接觸陰影。':''}${reflect?'商品下方加上淡淡的鏡面倒影。':''}${title?`畫面上方加入大而清晰易讀的繁體中文主標文字${state.summary?`「${state.summary.points?.[0]||state.summary.name}」`:'（依商品特性撰寫8字內賣點）'}，醒目簡潔、單一強調色。`:''}${!shadow&&!reflect?'不加陰影與倒影。':''}${!title?'不加任何文字與標籤。':''}正方形1:1。`;
+  const label=[bg==='white'?'純白底':'棚拍感',shadow?'陰影':'',reflect?'倒影':'',title?'主標':''].filter(Boolean).join('+');
+  const id=++state.mainSeq;
+  state.mains[id]={p,label};
+  const g=document.createElement('div');g.className='gallery';
+  g.innerHTML=`<div class="gcard" id="gm${id}">
+    <div class="imgwrap"><div class="loading"><div class="spinner"></div>生成中…</div></div>
+    <div class="meta"><span class="n">主圖</span><span class="t">${esc(label)}</span>
+    <button class="gbtn" onclick="dlMain(${id})">下載</button><button class="gbtn" onclick="runMain(${id})">重抽</button></div>
+    <div class="fix"><input id="fm${id}" placeholder="輸入修改需求，例如：商品再大一點" onkeydown="if(event.key==='Enter')reviseMain(${id})"><button onclick="reviseMain(${id})">修改</button></div>
+    <details><summary>提示詞</summary><pre id="pm${id}">${esc(p)}</pre></details></div>`;
+  chat.appendChild(g);chat.scrollTop=chat.scrollHeight;
+  await runMain(id);
+  addMsg('bot','可回上方設定面板換勾選再生成其他版本，或直接在圖下方輸入修改需求。');
+  addChips([{label:'🎨 開始製作圖文（10 張描述圖）',acc:true,fn:startListingFlow}]);
+};
+function startListingFlow(){
+  addMsg('user','開始製作圖文');
+  state.stage='collect';
+  addMsg('bot',`接下來三步：\n<b>①</b> 貼商品資料＋上傳 1~3 張商品照（左下角 📷，AI 會以照片為基準保持包裝一致；剛剛上傳的照片會直接沿用）\n<b>②</b> 我整理賣點，你選風格\n<b>③</b> Nano Banana 直接生成 10 張 1:1 商品描述圖，可逐張重生、打包 ZIP\n\n請貼上：商品名稱／簡介／主要賣點／售價規格`);
+}
+window.runMain=async id=>{
+  const card=$('#gm'+id);
+  const setLoad=t=>card.querySelector('.imgwrap').innerHTML=`<div class="loading"><div class="spinner"></div>${esc(t)}</div>`;
+  setLoad('生成中…');
+  try{
+    const url=await gemImage(state.mains[id].p,setLoad);
+    track('image',$('#modelSel').value,1);
+    state.mains[id].img=url;
+    card.querySelector('.imgwrap').innerHTML=`<img src="${url}" onclick="lbMain(${id})">`;
+  }catch(e){
+    card.querySelector('.imgwrap').innerHTML=`<div class="loading">⚠️ ${esc(e.message).slice(0,60)}<button class="gbtn" onclick="runMain(${id})">重試</button></div>`;
+  }
+};
+window.lbMain=id=>{$('#lbimg').src=state.mains[id].img;$('#lightbox').style.display='flex';};
+window.dlMain=id=>{const a=document.createElement('a');a.href=state.mains[id].img;a.download=`主圖_${state.mains[id].label}.png`;a.click();};
+window.reviseMain=async id=>{
+  const inp=$('#fm'+id);const req=inp.value.trim();
+  if(!req){inp.focus();return;}
+  const btn=inp.nextElementSibling;btn.disabled=true;btn.textContent='修改中';
+  const card=$('#gm'+id);
+  card.querySelector('.imgwrap').innerHTML=`<div class="loading"><div class="spinner"></div>依需求改寫提示詞…</div>`;
+  try{
+    const sys=`你是 Nano Banana 提示詞專家。這是一張電商白底主圖的現有提示詞：
+${state.mains[id].p}
+使用者的修改需求：「${req}」
+請針對需求精準改寫：只調整相關部分，白底規範與「保持商品包裝完全一致」規則必須保留。只回傳 JSON：{"p":"改寫後的完整提示詞"}`;
+    const r=await gemText(sys,'請改寫');
+    state.mains[id].p=r.p;
+    const pre=$('#pm'+id);if(pre)pre.textContent=r.p;
+    inp.value='';
+    await runMain(id);
+  }catch(e){
+    card.querySelector('.imgwrap').innerHTML=`<div class="loading">⚠️ ${esc(e.message).slice(0,60)}<button class="gbtn" onclick="runMain(${id})">重試</button></div>`;
+  }
+  btn.disabled=false;btn.textContent='修改';
 };
 
 /* send */
@@ -287,6 +409,7 @@ function handleSend(){
   addMsg('user',esc(t));
   if(state.stage==='key'){setKey(t);}
   else if(state.stage==='collect'){state.product=t;runAnalyze();}
+  else if(state.stage==='model'){state.model=t;document.querySelectorAll('.chips').forEach(c=>c.remove());runPrompts();}
   else if(state.stage==='plan'||state.stage==='free')runFree(t);
 }
 
@@ -300,9 +423,16 @@ styles 要依商品屬性客製三種攝影/設計風格方向。`;
     const r=await gemText(sys,'商品資料：\n'+state.product,state.photos);
     state.summary=r;stop();
     addMsg('bot',`收到！\n\n<b>${esc(r.name)}</b>｜${esc(r.summary)}\n<b>賣點</b>：${r.points.map(esc).join('、')}\n<b>客群</b>：${esc(r.audience)}\n\n選一個視覺風格，選完直接開始出圖（10 張，約 1~3 分鐘）：`);
-    addChips(r.styles.map(s=>({label:`${s.id}｜${s.name}`,acc:true,fn:()=>{state.style=s;addMsg('user','選 '+s.name);runPrompts();}})));
+    addChips(r.styles.map(s=>({label:`${s.id}｜${s.name}`,acc:true,fn:()=>{state.style=s;addMsg('user','選 '+s.name);askModel();}})));
     state.stage='idle';
   }catch(e){stop();fail(e,runAnalyze);}
+}
+
+/* stage: optional subject/model */
+function askModel(){
+  state.stage='model';
+  addMsg('bot',`最後一個選填項：要指定<b>畫面主角（模特）</b>嗎？\n\n可以是動物、人物或任何主體，AI 會讓主角在情境圖中與商品自然互動，整套形象保持一致。\n\n直接在下方輸入，例如「一隻橘貓」「25歲女生居家穿搭」「柴犬」；不需要就按跳過。`);
+  addChips([{label:'跳過（AI 自行決定）',fn:()=>{state.model='';addMsg('user','跳過');runPrompts();}}]);
 }
 
 /* stage: build 10 prompts */
@@ -312,7 +442,7 @@ async function runPrompts(){
   state.stage='busy';const stop=typing('正在撰寫 10 張圖的文案與提示詞');
   try{
     const base=`你是 Nano Banana 提示詞專家，為蝦皮商品描述圖寫「圖像生成提示詞」。
-商品：${JSON.stringify({...state.summary,styles:undefined})}。視覺風格：${state.style.name}（${state.style.desc}）。${FRAME}
+商品：${JSON.stringify({...state.summary,styles:undefined})}。視覺風格：${state.style.name}（${state.style.desc}）。${state.model?`畫面主角（模特）：${state.model}——請在鉤子圖、客群情境圖、使用方法圖等適合的圖中，讓此主角與商品自然互動；主角的外型特徵需在整套圖中保持一致；產品登場圖與規格圖可不放主角。`:''}${FRAME}
 提示詞規則：繁體中文撰寫；明確描述版面配置(構圖位置)、背景與氛圍、以及圖上要渲染的「確切文字內容」(用引號標出,主標≤12字副標≤18字,字要大而清晰易讀)；每張都註明「以參考圖中的商品為主體，完全保持包裝外觀、顏色、文字細節一致，不得改變包裝設計」；正方形1:1電商商品圖，整套10張需色調與設計語言一致。`;
     const mk=r=>`${base}\n只回傳 JSON：{"prompts":[{"no":編號,"goal":"這張圖的任務說明(16字內)","h":"圖上主標(12字內)","s":"圖上副標(18字內)","p":"完整提示詞(150字內)"}]}，本次撰寫第${r}張。`;
     const [b1,b2]=await Promise.all([gemText(mk('1~5'),'寫第1~5張'),gemText(mk('6~10'),'寫第6~10張')]);
@@ -391,6 +521,7 @@ async function genOne(no){
   try{
     const p=state.prompts.find(x=>x.no===no);
     const url=await gemImage(p.p,setLoad);
+    track('image',$('#modelSel').value,1);
     state.imgs[no]=url;rail();
     card.querySelector('.imgwrap').innerHTML=`<img src="${url}" onclick="lb('${no}')">`;
   }catch(e){
@@ -406,6 +537,7 @@ window.dlZip=async btn=>{
   btn.textContent='打包中…';
   const zip=new JSZip();
   Object.entries(state.imgs).forEach(([no,d])=>zip.file(`${String(no).padStart(2,'0')}_${IMG_TITLES[no]}.png`,d.split(',')[1],{base64:true}));
+  Object.values(state.mains).forEach(m=>{if(m.img)zip.file(`00_主圖_${m.label}.png`,m.img.split(',')[1],{base64:true});});
   const blob=await zip.generateAsync({type:'blob'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download=`${state.summary?.name||'商品'}_描述圖10張.zip`;a.click();
