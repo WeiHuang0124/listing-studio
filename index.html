@@ -34,6 +34,30 @@ header{background:var(--panel);border-bottom:1px solid var(--line);padding:12px 
 #keyBtn.ok{border-color:var(--ok);color:var(--ok);background:var(--ok-soft)}
 #clearKeyBtn{font-size:12px;font-weight:700;border:1.5px solid var(--line);background:#fff;color:var(--ink-2);border-radius:8px;padding:6px 12px;cursor:pointer;font-family:var(--sans)}
 #clearKeyBtn:hover{border-color:var(--accent);color:var(--accent)}
+#archiveBtn{font-size:12px;font-weight:700;border:1.5px solid var(--ink);background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-family:var(--sans)}
+#archiveBtn:hover{background:var(--ink);color:#fff}
+#arcCount{color:var(--accent);font-family:var(--mono)}
+.gbtn.star{border-color:var(--accent);color:var(--accent);min-width:30px}
+.gbtn.star.on{background:var(--accent);color:#fff}
+/* archive drawer */
+#drawer{position:fixed;inset:0;background:rgba(20,22,26,.5);display:none;z-index:80}
+#drawer.open{display:flex;justify-content:flex-end}
+.dpanel{width:min(520px,94vw);height:100%;background:var(--bg);display:flex;flex-direction:column;box-shadow:-20px 0 60px rgba(0,0,0,.25)}
+.dhead{background:var(--panel);border-bottom:1px solid var(--line);padding:14px 18px;display:flex;align-items:center;gap:10px}
+.dhead h2{font-size:15px;font-weight:900;flex:1}
+.dhead .sz{font-size:11px;color:var(--ink-2);font-family:var(--mono)}
+.dbody{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.dfolder{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.dfh{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);background:#FBFAF7}
+.dfh input{accent-color:var(--accent);width:16px;height:16px}
+.dfh .fn{font-size:13px;font-weight:900;flex:1;word-break:break-all}
+.dfh .fc{font-size:11px;color:var(--ink-2);font-family:var(--mono)}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;padding:12px 14px}
+.dthumb{position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--line);aspect-ratio:1;cursor:zoom-in}
+.dthumb img{width:100%;height:100%;object-fit:cover;display:block}
+.dthumb .dt-dl{position:absolute;right:3px;bottom:3px;font-size:10px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:5px;padding:2px 6px;cursor:pointer}
+.dfoot{background:var(--panel);border-top:1px solid var(--line);padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap}
+.dempty{text-align:center;color:var(--ink-2);font-size:13px;padding:60px 20px;line-height:2}
 /* plan cards */
 .plans{display:flex;flex-direction:column;gap:10px;margin-left:42px;max-width:94%}
 .pcard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px}
@@ -120,7 +144,7 @@ textarea:focus{outline:none;border-color:var(--accent)}
 <body>
 
 <header>
-  <div class="brand"><h1>圖文生成室 AI</h1><span>GEMINI NANO BANANA · 真 AI 出圖</span></div>
+  <div class="brand"><h1>圖文生成室 AI</h1><span id="verTag">GEMINI NANO BANANA</span></div>
   <div class="hright">
     <select id="modelSel">
       <option value="gemini-3.1-flash-image">NB2 標準（約NT$2/張・推薦）</option>
@@ -130,6 +154,7 @@ textarea:focus{outline:none;border-color:var(--accent)}
     </select>
     <button id="keyBtn">🔑 設定 API Key</button>
     <button id="clearKeyBtn" title="從這台電腦移除已儲存的 Key">🗑️ 清除 Key</button>
+    <button id="archiveBtn" title="已收藏圖片的本機暫存區">🗂️ 暫存區 <span id="arcCount"></span></button>
     <div class="rail" id="rail"></div>
   </div>
 </header>
@@ -146,9 +171,47 @@ textarea:focus{outline:none;border-color:var(--accent)}
   <div class="hint">本工具直接呼叫 Google Gemini API 出圖 · 10 張全套約 NT$10~30 · 免費申請 API Key：<a href="https://aistudio.google.com" target="_blank" rel="noopener">aistudio.google.com</a></div>
 </div>
 
+<div id="drawer" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="dpanel">
+    <div class="dhead"><h2>🗂️ 本機暫存區</h2><span class="sz" id="dSize"></span><button class="gbtn" onclick="$('#drawer').classList.remove('open')">關閉</button></div>
+    <div class="dbody" id="dBody"></div>
+    <div class="dfoot">
+      <button class="mini" onclick="delChecked()">刪除勾選資料夾</button>
+      <button class="mini" onclick="clearArchive()">清空全部</button>
+    </div>
+  </div>
+</div>
+
 <div id="lightbox" onclick="this.style.display='none'"><img id="lbimg"></div>
 
 <script>
+/* ═══════════ 更新日誌 ═══════════
+v1.4.1 2026-07-03
+  ・修復「先不用，繼續流程」按鈕無回應（現在會引導貼商品資料）
+  ・新增快捷指令：任何時候輸入「做主圖」即啟動白底主圖流程
+v1.4.0 2026-07-03
+  ・新增本機暫存區（IndexedDB）：每次產圖依「商品名＋時間戳」自動建資料夾
+  ・每張圖可按 ☆ 收藏進暫存區；右上角 🗂️ 開啟暫存區
+  ・暫存區支援：縮圖瀏覽、單張下載/移除、資料夾打包ZIP、勾選刪除資料夾、一鍵清空
+v1.3.0 2026-07-03
+  ・新增「忽略參考圖後製文字」規則：參考照片上的行銷標語、浮水印、
+    貼圖不再被複製到生成圖中；圖上文字一律以工具撰寫的繁中文案為準
+  ・介面顯示版本號與更新日誌
+v1.2.0 2026-07-03
+  ・白底主圖升級：AI 主體辨識（自動判斷商品、列出待移除干擾物）＋
+    風格勾選面板（背景單選、陰影/倒影/主標複選）
+  ・主圖完成後新增「開始製作圖文」引導按鈕
+v1.1.0 2026-07-03
+  ・新增白底主圖功能、模特（畫面主角）選填步驟
+  ・使用監測（Vercel Analytics + Google Sheet 事件回報）
+  ・aistudio.google.com 申請連結
+v1.0.0 2026-07-03
+  ・聊天式三階段流程：商品分析 → 企劃確認（免費）→ 10 張描述圖生成
+  ・逐圖修改輸入框、重抽、ZIP 打包；Key 每台電腦記憶＋手動清除
+════════════════════════════════ */
+const VERSION='v1.4.1';
+/* 參考圖後製文字切割規則：注入所有圖像提示詞 */
+const REF_RULE='重要規則：參考圖照片上的行銷文字、標語、logo、浮水印、價格貼圖等，均為原照片的後製元素，「不屬於商品本身」，必須完全忽略且絕不可出現在生成圖中。生成圖上的所有文字，只能使用本提示詞明確指定的繁體中文文案；未指定文字時不加任何文字。唯一例外：商品實體包裝上印刷的文字屬於商品本身，須保持原樣不得改動。';
 const $=s=>document.querySelector(s);
 const chat=$('#chat'), input=$('#input');
 const TEXT_MODEL='gemini-2.5-flash';
@@ -166,6 +229,98 @@ function track(event,model,n){
     body:JSON.stringify({sid:SID,event,model:model||'',n:n||1,cost:+((COST_TWD[model]||0)*(n||1)).toFixed(2),ua:navigator.userAgent.slice(0,60)})});}catch(e){}
 }
 track('visit');
+$('#verTag').textContent='GEMINI NANO BANANA · '+VERSION;
+
+/* ============ 本機暫存區（IndexedDB，純本機不上傳） ============ */
+const idb={db:null,
+  open(){return new Promise((res,rej)=>{
+    const r=indexedDB.open('listing-studio',1);
+    r.onupgradeneeded=e=>{const d=e.target.result;
+      const s=d.createObjectStore('imgs',{keyPath:'id',autoIncrement:true});
+      s.createIndex('folder','folder');};
+    r.onsuccess=e=>{idb.db=e.target.result;res();};r.onerror=()=>rej(r.error);});},
+  tx(mode){return idb.db.transaction('imgs',mode).objectStore('imgs');},
+  add(rec){return new Promise((res,rej)=>{const q=idb.tx('readwrite').add(rec);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);});},
+  del(id){return new Promise(res=>{idb.tx('readwrite').delete(id).onsuccess=()=>res();});},
+  all(){return new Promise(res=>{const q=idb.tx('readonly').getAll();q.onsuccess=()=>res(q.result||[]);});},
+  clear(){return new Promise(res=>{idb.tx('readwrite').clear().onsuccess=()=>res();});}
+};
+state.starred={};state.folder=null;
+function getFolder(){
+  if(!state.folder){
+    const name=(state.summary?.name||state.subject?.subject||'未命名商品').replace(/[\\/:*?"'`<>|]/g,'');
+    const d=new Date(),p=n=>String(n).padStart(2,'0');
+    state.folder=`${name}_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+  }
+  return state.folder;
+}
+async function updateArcCount(){
+  try{const all=await idb.all();$('#arcCount').textContent=all.length?`(${all.length})`:'';}catch(e){}
+}
+window.toggleStar=async key=>{
+  const btn=$('#star-'+key);
+  try{
+    if(state.starred[key]){await idb.del(state.starred[key]);delete state.starred[key];btn.classList.remove('on');btn.textContent='☆';}
+    else{
+      let data,label;
+      if(key[0]==='d'){const no=+key.slice(1);data=state.imgs[no];label=`${String(no).padStart(2,'0')}_${IMG_TITLES[no]}`;}
+      else{const id=+key.slice(1);data=state.mains[id]?.img;label=`主圖_${state.mains[id]?.label}`;}
+      if(!data)return;
+      const id=await idb.add({folder:getFolder(),ts:Date.now(),label,data});
+      state.starred[key]=id;btn.classList.add('on');btn.textContent='★';
+    }
+    updateArcCount();
+  }catch(e){addMsg('bot','⚠️ 暫存失敗：'+esc(e.message));}
+};
+$('#archiveBtn').onclick=async()=>{await renderDrawer();$('#drawer').classList.add('open');};
+async function renderDrawer(){
+  const all=await idb.all();
+  const body=$('#dBody');
+  const mb=(all.reduce((s,r)=>s+(r.data?.length||0),0)/1048576).toFixed(1);
+  $('#dSize').textContent=all.length?`${all.length} 張 · 約 ${mb} MB`:'';
+  if(!all.length){body.innerHTML=`<div class="dempty">暫存區是空的<br>在圖片卡片上按 ☆ 星星即可把喜歡的圖存到這裡<br>（只存在這台電腦，換電腦看不到）</div>`;return;}
+  const folders={};
+  all.forEach(r=>{(folders[r.folder]=folders[r.folder]||[]).push(r);});
+  body.innerHTML=Object.entries(folders).sort((a,b)=>b[1][0].ts-a[1][0].ts).map(([f,recs])=>`
+    <div class="dfolder">
+      <div class="dfh"><input type="checkbox" class="fchk" value="${esc(f)}">
+        <span class="fn">📁 ${esc(f)}</span><span class="fc">${recs.length} 張</span>
+        <button class="gbtn" onclick="dlFolder('${esc(f)}')">ZIP</button></div>
+      <div class="dgrid">${recs.map(r=>`
+        <div class="dthumb"><img src="${r.data}" onclick="lbShow(this.src)">
+        <button class="dt-dl" onclick="event.stopPropagation();dlRec(${r.id})">⬇</button></div>`).join('')}</div>
+    </div>`).join('');
+  state._recs=all;
+}
+window.lbShow=src=>{$('#lbimg').src=src;$('#lightbox').style.display='flex';};
+window.dlRec=id=>{
+  const r=state._recs.find(x=>x.id===id);if(!r)return;
+  const a=document.createElement('a');a.href=r.data;a.download=`${r.label}.png`;a.click();
+};
+window.dlFolder=async f=>{
+  const all=await idb.all();
+  const zip=new JSZip();
+  all.filter(r=>r.folder===f).forEach((r,i)=>zip.file(`${r.label}_${i+1}.png`,r.data.split(',')[1],{base64:true}));
+  const blob=await zip.generateAsync({type:'blob'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${f}.zip`;a.click();
+};
+window.delChecked=async()=>{
+  const picked=[...document.querySelectorAll('.fchk:checked')].map(c=>c.value);
+  if(!picked.length)return alert('請先勾選要刪除的資料夾');
+  if(!confirm(`確定刪除 ${picked.length} 個資料夾？此動作無法復原。`))return;
+  const all=await idb.all();
+  for(const r of all)if(picked.includes(r.folder))await idb.del(r.id);
+  Object.entries(state.starred).forEach(([k,id])=>{if(!all.find(r=>r.id===id))return;const rec=all.find(r=>r.id===id);
+    if(picked.includes(rec.folder)){delete state.starred[k];const b=$('#star-'+k);if(b){b.classList.remove('on');b.textContent='☆';}}});
+  await renderDrawer();updateArcCount();
+};
+window.clearArchive=async()=>{
+  if(!confirm('確定清空整個暫存區？所有已收藏圖片將被刪除，無法復原。'))return;
+  await idb.clear();
+  Object.keys(state.starred).forEach(k=>{delete state.starred[k];const b=$('#star-'+k);if(b){b.classList.remove('on');b.textContent='☆';}});
+  await renderDrawer();updateArcCount();
+};
+idb.open().then(updateArcCount).catch(()=>{$('#archiveBtn').style.display='none';});
 const IMG_TITLES={1:'痛點鉤子圖',2:'產品登場圖',3:'賣點圖一',4:'賣點圖二',5:'賣點圖三',6:'競品對比圖',7:'使用方法圖',8:'客群情境圖',9:'信任背書圖',10:'規格行動圖'};
 
 /* environment check: Claude artifact preview blocks external APIs */
@@ -235,7 +390,7 @@ async function gemText(sys,userText,photos){
 
 async function gemImage(prompt,onWait){
   const parts=state.photos.map(p=>({inline_data:{mime_type:p.mime,data:p.b64}}));
-  parts.push({text:prompt});
+  parts.push({text:prompt+'\n\n'+REF_RULE});
   const data=await gemCall($('#modelSel').value,{contents:[{role:'user',parts}],
       generationConfig:{responseModalities:['IMAGE'],imageConfig:{aspectRatio:'1:1'}}},onWait);
   const img=data.candidates?.[0]?.content?.parts?.find(p=>p.inline_data||p.inlineData);
@@ -299,7 +454,11 @@ $('#photoInput').onchange=e=>{
       addMsg('user','（已上傳商品照）',[r.result]);
       if(!state.mainOffered&&state.key){state.mainOffered=true;
         addMsg('bot','照片收到！除了 10 張描述圖，我也可以先幫你做<b>白底主圖</b>（自動辨識商品主體、去背、置中白底，符合蝦皮主圖規範）：');
-        addChips([{label:'🖼️ 製作白底主圖',acc:true,fn:mainImageFlow},{label:'先不用，繼續流程',fn:()=>{}}]);
+        addChips([{label:'🖼️ 製作白底主圖',acc:true,fn:mainImageFlow},{label:'先不用，繼續流程',fn:()=>{
+          addMsg('user','先不用，繼續流程');
+          if(state.summary){addMsg('bot','好的，我們繼續。');}
+          else{state.stage='collect';addMsg('bot','好的！請直接貼上<b>商品資料</b>（名稱／簡介／主要賣點／售價規格），貼上後我就開始分析。之後隨時想做白底主圖，跟我說「做主圖」就行。');}
+        }}]);
       }};
     r.readAsDataURL(f);
   });
@@ -341,7 +500,7 @@ window.genMainFromPanel=async()=>{
   const bg=document.querySelector('input[name="opBg"]:checked').value;
   const shadow=$('#opShadow').checked,reflect=$('#opReflect').checked,title=$('#opTitle').checked;
   const dis=state.subject?.distractors?.length?state.subject.distractors.join('、')+'、':'';
-  const p=`任務：電商主圖。商品主體：「${subject}」。從參考圖中精準辨識並擷取此商品主體，徹底移除畫面中的所有干擾物（${dis}寵物、人物、雜物）與原始背景，畫面中只保留商品本身。將商品置於${bg==='white'?'純白色(#FFFFFF)、無雜訊無漸層的':'淺灰色攝影棚柔和漸層'}背景正中央，商品佔畫面約80%，完全保持商品的外觀、材質、顏色與細節一致，不得改變商品設計。專業商品攝影質感：光線均勻明亮、邊緣乾淨銳利。${shadow?'商品底部加上自然柔和的接觸陰影。':''}${reflect?'商品下方加上淡淡的鏡面倒影。':''}${title?`畫面上方加入大而清晰易讀的繁體中文主標文字${state.summary?`「${state.summary.points?.[0]||state.summary.name}」`:'（依商品特性撰寫8字內賣點）'}，醒目簡潔、單一強調色。`:''}${!shadow&&!reflect?'不加陰影與倒影。':''}${!title?'不加任何文字與標籤。':''}正方形1:1。`;
+  const p=`任務：電商主圖。商品主體：「${subject}」。從參考圖中精準辨識並擷取此商品主體，徹底移除畫面中的所有干擾物（${dis}寵物、人物、雜物）、原始背景、以及原照片上的一切後製文字與標語。將商品置於${bg==='white'?'純白色(#FFFFFF)、無雜訊無漸層的':'淺灰色攝影棚柔和漸層'}背景正中央，商品佔畫面約80%，完全保持商品實體的外觀、材質、顏色與細節一致，不得改變商品設計。專業商品攝影質感：光線均勻明亮、邊緣乾淨銳利。${shadow?'商品底部加上自然柔和的接觸陰影。':''}${reflect?'商品下方加上淡淡的鏡面倒影。':''}${title?`畫面上方加入大而清晰易讀的繁體中文主標文字${state.summary?`「${state.summary.points?.[0]||state.summary.name}」`:'（依商品特性撰寫8字內賣點）'}，醒目簡潔、單一強調色。`:''}${!shadow&&!reflect?'不加陰影與倒影。':''}${!title?'不加任何文字與標籤。':''}正方形1:1。`;
   const label=[bg==='white'?'純白底':'棚拍感',shadow?'陰影':'',reflect?'倒影':'',title?'主標':''].filter(Boolean).join('+');
   const id=++state.mainSeq;
   state.mains[id]={p,label};
@@ -349,6 +508,7 @@ window.genMainFromPanel=async()=>{
   g.innerHTML=`<div class="gcard" id="gm${id}">
     <div class="imgwrap"><div class="loading"><div class="spinner"></div>生成中…</div></div>
     <div class="meta"><span class="n">主圖</span><span class="t">${esc(label)}</span>
+    <button class="gbtn star" id="star-m${id}" onclick="toggleStar('m${id}')" title="收藏到本機暫存區">☆</button>
     <button class="gbtn" onclick="dlMain(${id})">下載</button><button class="gbtn" onclick="runMain(${id})">重抽</button></div>
     <div class="fix"><input id="fm${id}" placeholder="輸入修改需求，例如：商品再大一點" onkeydown="if(event.key==='Enter')reviseMain(${id})"><button onclick="reviseMain(${id})">修改</button></div>
     <details><summary>提示詞</summary><pre id="pm${id}">${esc(p)}</pre></details></div>`;
@@ -369,6 +529,7 @@ window.runMain=async id=>{
   try{
     const url=await gemImage(state.mains[id].p,setLoad);
     track('image',$('#modelSel').value,1);
+    delete state.starred['m'+id];const sb=$('#star-m'+id);if(sb){sb.classList.remove('on');sb.textContent='☆';}
     state.mains[id].img=url;
     card.querySelector('.imgwrap').innerHTML=`<img src="${url}" onclick="lbMain(${id})">`;
   }catch(e){
@@ -407,6 +568,11 @@ function handleSend(){
   const t=input.value.trim();if(!t)return;
   input.value='';input.style.height='auto';
   addMsg('user',esc(t));
+  /* 快捷指令：任何階段輸入「做主圖」即啟動白底主圖流程 */
+  if(/^(做|製作|生成|我要做?)?(白底)?主圖$/.test(t.replace(/\s/g,''))){
+    if(state.stage==='key'){addMsg('bot','請先完成 API Key 設定。');return;}
+    mainImageFlow();return;
+  }
   if(state.stage==='key'){setKey(t);}
   else if(state.stage==='collect'){state.product=t;runAnalyze();}
   else if(state.stage==='model'){state.model=t;document.querySelectorAll('.chips').forEach(c=>c.remove());runPrompts();}
@@ -421,7 +587,7 @@ async function runAnalyze(){
 {"name":"商品名(10字內)","summary":"一句話定位(24字內)","points":["賣點"](4-6個,各10字內),"audience":"客群(16字內)","styles":[{"id":"A","name":"風格名(6字內)","desc":"視覺描述(20字內,含色調/材質/氛圍)"},{"id":"B"},{"id":"C"}]}
 styles 要依商品屬性客製三種攝影/設計風格方向。`;
     const r=await gemText(sys,'商品資料：\n'+state.product,state.photos);
-    state.summary=r;stop();
+    state.summary=r;state.folder=null;stop();
     addMsg('bot',`收到！\n\n<b>${esc(r.name)}</b>｜${esc(r.summary)}\n<b>賣點</b>：${r.points.map(esc).join('、')}\n<b>客群</b>：${esc(r.audience)}\n\n選一個視覺風格，選完直接開始出圖（10 張，約 1~3 分鐘）：`);
     addChips(r.styles.map(s=>({label:`${s.id}｜${s.name}`,acc:true,fn:()=>{state.style=s;addMsg('user','選 '+s.name);askModel();}})));
     state.stage='idle';
@@ -443,7 +609,7 @@ async function runPrompts(){
   try{
     const base=`你是 Nano Banana 提示詞專家，為蝦皮商品描述圖寫「圖像生成提示詞」。
 商品：${JSON.stringify({...state.summary,styles:undefined})}。視覺風格：${state.style.name}（${state.style.desc}）。${state.model?`畫面主角（模特）：${state.model}——請在鉤子圖、客群情境圖、使用方法圖等適合的圖中，讓此主角與商品自然互動；主角的外型特徵需在整套圖中保持一致；產品登場圖與規格圖可不放主角。`:''}${FRAME}
-提示詞規則：繁體中文撰寫；明確描述版面配置(構圖位置)、背景與氛圍、以及圖上要渲染的「確切文字內容」(用引號標出,主標≤12字副標≤18字,字要大而清晰易讀)；每張都註明「以參考圖中的商品為主體，完全保持包裝外觀、顏色、文字細節一致，不得改變包裝設計」；正方形1:1電商商品圖，整套10張需色調與設計語言一致。`;
+提示詞規則：繁體中文撰寫；明確描述版面配置(構圖位置)、背景與氛圍、以及圖上要渲染的「確切文字內容」(用引號標出,主標≤12字副標≤18字,字要大而清晰易讀)；每張都註明「以參考圖中的商品為主體，完全保持商品實體的外觀、顏色、材質細節一致，不得改變商品設計」；每張提示詞都必須包含這條規則原文：「${REF_RULE}」；正方形1:1電商商品圖，整套10張需色調與設計語言一致。`;
     const mk=r=>`${base}\n只回傳 JSON：{"prompts":[{"no":編號,"goal":"這張圖的任務說明(16字內)","h":"圖上主標(12字內)","s":"圖上副標(18字內)","p":"完整提示詞(150字內)"}]}，本次撰寫第${r}張。`;
     const [b1,b2]=await Promise.all([gemText(mk('1~5'),'寫第1~5張'),gemText(mk('6~10'),'寫第6~10張')]);
     state.prompts=[...b1.prompts,...b2.prompts].sort((a,b)=>a.no-b.no);
@@ -476,6 +642,7 @@ async function renderGallery(){
     g.insertAdjacentHTML('beforeend',`<div class="gcard" id="g${p.no}">
       <div class="imgwrap"><div class="loading"><div class="spinner"></div>排隊中…</div></div>
       <div class="meta"><span class="n">${String(p.no).padStart(2,'0')}</span><span class="t">${IMG_TITLES[p.no]}</span>
+      <button class="gbtn star" id="star-d${p.no}" onclick="toggleStar('d${p.no}')" title="收藏到本機暫存區">☆</button>
       <button class="gbtn" onclick="dl(${p.no})">下載</button><button class="gbtn" onclick="regen(${p.no})">重抽</button></div>
       <div class="fix"><input id="fx${p.no}" placeholder="輸入修改需求，例如：留白不要太多" onkeydown="if(event.key==='Enter')reviseOne(${p.no})"><button onclick="reviseOne(${p.no})">修改</button></div>
       <details><summary>提示詞</summary><pre id="pp${p.no}">${esc(p.p)}</pre></details></div>`);
@@ -522,6 +689,7 @@ async function genOne(no){
     const p=state.prompts.find(x=>x.no===no);
     const url=await gemImage(p.p,setLoad);
     track('image',$('#modelSel').value,1);
+    delete state.starred['d'+no];const sb=$('#star-d'+no);if(sb){sb.classList.remove('on');sb.textContent='☆';}
     state.imgs[no]=url;rail();
     card.querySelector('.imgwrap').innerHTML=`<img src="${url}" onclick="lb('${no}')">`;
   }catch(e){
