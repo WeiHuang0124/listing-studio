@@ -190,6 +190,9 @@ textarea:focus{outline:none;border-color:var(--accent)}
 
 <script>
 /* ═══════════ 更新日誌 ═══════════
+v2.1.0 2026-07-04
+  ・支援進階風格解鎖：輸入「/解鎖碼」可啟用進階授權限定風格
+  ・風格選項改為可動態更新
 v2.0.0 2026-07-04
   ・架構升級：提示詞與流程邏輯全數移至 Cloudflare Worker 後端，
     客戶端不再含任何核心資產（F12 無密可看）
@@ -225,7 +228,7 @@ v1.0.0 2026-07-03
   ・聊天式三階段流程：商品分析 → 企劃確認（免費）→ 10 張描述圖生成
   ・逐圖修改輸入框、重抽、ZIP 打包；Key 每台電腦記憶＋手動清除
 ════════════════════════════════ */
-const VERSION='v2.0.0';
+const VERSION='v2.1.0';
 /* ★★★ 部署 Cloudflare Worker 後，把 Worker 網址貼在下面引號內 ★★★
    例如：const WORKER_URL='https://listing-studio-api.你的帳號.workers.dev'; */
 const WORKER_URL='https://listing-studio-ai.senmao.workers.dev';
@@ -607,6 +610,12 @@ $('#send').onclick=handleSend;
 function handleSend(){
   const t=input.value.trim();if(!t)return;
   input.value='';input.style.height='auto';
+  /* 解鎖指令：以 / 開頭視為解鎖碼，任何階段皆可，不回顯內容 */
+  if(t.startsWith('/')&&t.length>1){
+    addMsg('user','（輸入解鎖碼）');
+    runUnlock(t.slice(1));
+    return;
+  }
   addMsg('user',esc(t));
   /* 快捷指令：任何階段輸入「做主圖」即啟動白底主圖流程 */
   if(/^(做|製作|生成|我要做?)?(白底)?主圖$/.test(t.replace(/\s/g,''))){
@@ -628,9 +637,30 @@ async function runAnalyze(){
     const r=await api('/t',{task:'analyze',product:state.product});
     state.summary=r;state.folder=null;stop();
     addMsg('bot',`收到！\n\n<b>${esc(r.name)}</b>｜${esc(r.summary)}\n<b>賣點</b>：${r.points.map(esc).join('、')}\n<b>客群</b>：${esc(r.audience)}\n\n選一個視覺風格，選完直接開始出圖（10 張，約 1~3 分鐘）：`);
-    addChips(r.styles.map(s=>({label:`${s.id}｜${s.name}`,acc:true,fn:()=>{state.style=s;addMsg('user','選 '+s.name);askModel();}})));
+    showStyleChips(r.styles);
     state.stage='idle';
   }catch(e){stop();fail(e,runAnalyze);}
+}
+
+function showStyleChips(styles){
+  addChips(styles.map(s=>({label:`${s.id}｜${s.name}`,acc:true,fn:()=>{state.style=s;addMsg('user','選 '+s.name);askModel();}})));
+}
+
+/* 進階風格解鎖：輸入「/解鎖碼」觸發，碼由伺服器驗證 */
+async function runUnlock(code){
+  const stop=typing('驗證解鎖碼');
+  try{
+    await ensureSession();
+    const r=await api('/t',{task:'unlock',code});stop();
+    addMsg('bot','✅ 進階風格已解鎖！');
+    if(r.styles&&state.summary){
+      state.summary.styles=r.styles;
+      addMsg('bot','風格選項已更新，請重新選擇：');
+      document.querySelectorAll('.chips').forEach(c=>c.remove());
+      showStyleChips(r.styles);
+      state.stage='idle';
+    }
+  }catch(e){stop();addMsg('bot','⚠️ '+esc(e.message));}
 }
 
 /* stage: optional subject/model */
