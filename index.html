@@ -190,6 +190,10 @@ textarea:focus{outline:none;border-color:var(--accent)}
 
 <script>
 /* ═══════════ 更新日誌 ═══════════
+v2.3.0 2026-07-04
+  ・新增免費試用模式：無授權碼可直接體驗 5 次生成任務（10張圖文=1次、主圖=1次）
+  ・每次任務完成後詢問是否繼續，並顯示剩餘試用次數
+  ・試用額度由伺服器計算，60 天後自動重置
 v2.2.0 2026-07-04
   ・進階授權（pro）可檢視每張圖的完整提示詞（一般授權伺服器不回傳）
 v2.1.0 2026-07-04
@@ -230,14 +234,15 @@ v1.0.0 2026-07-03
   ・聊天式三階段流程：商品分析 → 企劃確認（免費）→ 10 張描述圖生成
   ・逐圖修改輸入框、重抽、ZIP 打包；Key 每台電腦記憶＋手動清除
 ════════════════════════════════ */
-const VERSION='v2.2.0';
+const VERSION='v2.3.0';
 /* ★★★ 部署 Cloudflare Worker 後，把 Worker 網址貼在下面引號內 ★★★
    例如：const WORKER_URL='https://listing-studio-api.你的帳號.workers.dev'; */
 const WORKER_URL='https://listing-studio-ai.senmao.workers.dev';
 const $=s=>document.querySelector(s);
 const chat=$('#chat'), input=$('#input');
 const TEXT_MODEL='gemini-2.5-flash';
-const state={stage:'lic',lic:'',key:'',sid:'',sessionDirty:false,product:'',model:'',photos:[],summary:null,style:null,prompts:[],imgs:{}};
+const state={stage:'lic',lic:'',key:'',sid:'',sessionDirty:false,product:'',model:'',photos:[],summary:null,style:null,prompts:[],imgs:{},trial:false,left:null,tid:''};
+state.tid=(()=>{try{let t=localStorage.getItem('tid');if(!t){t=Math.random().toString(36).slice(2,12);localStorage.setItem('tid',t);}return t;}catch(e){return 'anon'+Math.random().toString(36).slice(2,8)}})();
 
 /* ═══ 使用監測（選填）═══
    到 Google Apps Script 部署好收集端後，把網址貼進 TRACK_URL（見「監測平台設定說明」）。
@@ -389,9 +394,15 @@ const licStore={get v(){try{return localStorage.getItem('lic')||''}catch(e){retu
 
 async function api(path,body){
   const res=await fetch(WORKER_URL+path,{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({lic:state.lic,key:state.key,sid:state.sid,...body})});
+    body:JSON.stringify({lic:state.lic,tid:state.tid,key:state.key,sid:state.sid,...body})});
   let d;try{d=await res.json();}catch(e){throw new Error('伺服器回應異常，請稍後再試');}
   if(d.error){
+    if(d.error==='TRIAL_END'){
+      state.left=0;
+      addMsg('bot','🎁 免費試用次數已用完。輸入<b>授權碼</b>即可無限使用（購買請洽賣家）：');
+      addChips([{label:'🎫 輸入授權碼',acc:true,fn:()=>askLic()}]);
+      throw new Error('試用次數已用完');
+    }
     if(res.status===401){licStore.v='';state.lic='';state.stage='lic';askLic(d.error==='NEED_LIC'?'':d.error);}
     throw new Error(d.error==='NEED_LIC'?'需要授權碼':d.error);
   }
@@ -435,8 +446,9 @@ async function setLic(code){
   const stop=typing('驗證授權中');
   try{
     const r=await api('/v',{});stop();
-    licStore.v=code;state.pro=r.pro===true;
+    licStore.v=code;state.pro=r.pro===true;state.trial=false;state.left=null;
     addMsg('bot',`授權成功 ✅${r.name?'（'+esc(r.name)+'）':''}`);
+    if(state.summary||state.prompts.length){addMsg('bot','已升級為正式授權，繼續目前的流程即可。');state.stage=state.prompts.length?'free':'idle';return;}
     if(store.k){state.key=store.k;$('#keyBtn').classList.add('ok');$('#keyBtn').textContent='🔑 Key 已設定';state.stage='collect';
       addMsg('bot',`這台電腦已設定過 Gemini Key，直接開始 ✅\n\n請貼上商品資料（名稱／簡介／賣點／規格），並用左下角 📷 上傳 1~3 張商品照。`);
     }else{state.stage='key';askKey();}
@@ -478,10 +490,20 @@ $('#clearKeyBtn').onclick=()=>{
   addMsg('bot','🗑️ 已清除這台電腦上儲存的 Key。');
   askKey();
 };
-(function gate(){
+(async function gate(){
   if(!WORKER_URL){addMsg('bot','⚠️ <b>尚未設定後端網址</b>：請打開本檔案，把 Cloudflare Worker 網址貼進頂端的 WORKER_URL，再重新部署。');return;}
   state.lic=licStore.v;
-  if(!state.lic){state.stage='lic';askLic();return;}
+  if(!state.lic){
+    /* 試用模式：免授權碼直接體驗 */
+    state.trial=true;
+    try{const r=await api('/v',{});state.left=r.left;}catch(e){}
+    addMsg('bot',`歡迎使用<b>圖文生成室 AI</b> 🎁\n\n你目前是<b>免費試用</b>：可完整體驗所有功能，共 <b>${state.left??5} 次</b>生成任務（一套 10 張圖文＝1 次、一張白底主圖＝1 次）。\n已有授權碼可隨時輸入解鎖無限使用。`);
+    addChips([{label:'🎫 我有授權碼',fn:()=>askLic()}]);
+    if(store.k){state.key=store.k;$('#keyBtn').classList.add('ok');$('#keyBtn').textContent='🔑 Key 已設定';state.stage='collect';
+      addMsg('bot',`這台電腦已設定過 Gemini Key ✅ 請貼上商品資料（名稱／簡介／賣點／規格），並用左下角 📷 上傳 1~3 張商品照。`);
+    }else{state.stage='key';askKey();}
+    return;
+  }
   if(store.k){state.key=store.k;$('#keyBtn').classList.add('ok');$('#keyBtn').textContent='🔑 Key 已設定';state.stage='collect';
     addMsg('bot',`嗨，歡迎回來！授權與 Key 皆已就緒 ✅\n\n請貼上商品資料（名稱／簡介／賣點／規格），並用左下角 📷 上傳 1~3 張商品照。\n上傳照片後也可以直接製作<b>白底主圖</b>。`);
   }else{state.stage='key';askKey();}
@@ -559,14 +581,17 @@ window.genMainFromPanel=async()=>{
     await ensureSession();
     const r=await api('/i',{main,model:$('#modelSel').value});
     track('image',$('#modelSel').value,1);
+    if(r.trialLeft!=null)state.left=r.trialLeft;
     state.mains[id].mid=r.mid;state.mains[id].img=r.img;
     card.querySelector('.imgwrap').innerHTML=`<img src="${r.img}" onclick="lbMain(${id})">`;
     if(r.p)card.insertAdjacentHTML('beforeend',`<details><summary>提示詞</summary><pre id="pm${id}">${esc(r.p)}</pre></details>`);
   }catch(e){
     card.querySelector('.imgwrap').innerHTML=`<div class="loading">⚠️ ${esc(e.message).slice(0,60)}</div>`;
   }
-  addMsg('bot','可回上方設定面板換勾選再生成其他版本，或直接在圖下方輸入修改需求。');
-  addChips([{label:'🎨 開始製作圖文（10 張描述圖）',acc:true,fn:startListingFlow}]);
+  addMsg('bot','可回上方設定面板換勾選再生成其他版本，或直接在圖下方輸入修改需求。'+(state.trial?`\n🎁 試用剩餘 <b>${state.left??'?'}</b> 次`:''));
+  const mchips=[{label:'🎨 開始製作圖文（10 張描述圖）',acc:true,fn:startListingFlow}];
+  if(state.trial)mchips.push({label:'🎫 輸入授權碼解鎖無限',fn:()=>askLic()});
+  addChips(mchips);
 };
 function startListingFlow(){
   addMsg('user','開始製作圖文');
@@ -681,6 +706,7 @@ async function runPrompts(){
   try{
     await ensureSession();
     const r=await api('/t',{task:'prompts',style:state.style,model:state.model});
+    if(r.trialLeft!=null)state.left=r.trialLeft;
     state.prompts=r.plan;
     stop();
     showPlan();
@@ -721,9 +747,27 @@ async function renderGallery(){
   const btns=document.createElement('div');btns.className='cardbtns';
   btns.innerHTML=`<button class="mini fill" onclick="dlZip(this)">📦 打包下載全部（ZIP）</button>`;
   chat.appendChild(btns);
-  addMsg('bot','全部完成 ✅\n\n・每張圖下方有<b>修改輸入框</b>：輸入需求（例如「留白不要太多」「主標改紅色」「商品放大一點」）按修改或 Enter，會依需求改寫提示詞後<b>自動重新出圖</b>\n・「重抽」＝同提示詞再抽一次（純看運氣換構圖）\n・點圖可放大檢視');
+  addMsg('bot','全部完成 ✅\n\n・每張圖下方有<b>修改輸入框</b>：輸入需求（例如「留白不要太多」「主標改紅色」）按修改或 Enter，會自動重新出圖\n・「重抽」＝同提示詞再抽一次\n・點圖可放大檢視');
+  askContinue();
   chat.scrollTop=chat.scrollHeight;
   state.stage='free';
+}
+
+/* 任務結束詢問是否繼續 */
+function askContinue(){
+  const info=state.trial?`\n🎁 試用剩餘 <b>${state.left??'?'}</b> 次`:'';
+  addMsg('bot','這個任務完成了，要繼續嗎？'+info);
+  const chips=[{label:'🆕 製作下一個商品',acc:true,fn:resetForNext},{label:'先到這裡（可繼續微調）',fn:()=>addMsg('bot','好的！要調整任何一張，直接在圖下方輸入需求或打字告訴我。')}];
+  if(state.trial)chips.splice(1,0,{label:'🎫 輸入授權碼解鎖無限',fn:()=>askLic()});
+  addChips(chips);
+}
+function resetForNext(){
+  addMsg('user','製作下一個商品');
+  Object.assign(state,{product:'',model:'',photos:[],summary:null,style:null,prompts:[],imgs:{},sid:'',sessionDirty:false,subject:null,mainOffered:false});
+  $('#pc').textContent='0';$('#photoBtn').classList.remove('has');
+  dots.forEach(d=>d.classList.remove('done','planned'));
+  state.stage='collect';
+  addMsg('bot','來做下一個！請貼上<b>新商品的資料</b>（名稱／簡介／賣點／規格），並上傳 1~3 張商品照。');
 }
 
 /* per-image precise revision */
