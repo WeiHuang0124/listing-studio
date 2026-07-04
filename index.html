@@ -791,4 +791,23 @@ async function runFree(text){
       }
       if(r.p){const pre=$('#pp'+r.no);if(pre)pre.textContent=r.p;const pl=$('#plan-pp'+r.no);if(pl)pl.textContent=r.p;}
       if(state.stage==='free'&&$('#g'+r.no)){
-        addMsg('bot',`✅ 第 ${r.no} 張已更新，重新出圖中…
+        addMsg('bot',`✅ 第 ${r.no} 張已更新，重新出圖中…`);
+        await genOne(r.no);
+        $('#g'+r.no).scrollIntoView({behavior:'smooth',block:'center'});
+      }else{
+        addMsg('bot',`✅ 第 ${r.no} 張企劃已更新（主標：「${esc(r.h)}」）。還要調整其他張嗎？確認後按「開始生成」。`);
+        if(planCard)planCard.scrollIntoView({behavior:'smooth',block:'center'});
+        addChips([{label:'🍌 確認企劃，開始生成 10 張圖',acc:true,fn:()=>{addMsg('user','確認，開始出圖');renderGallery();}}]);
+      }
+    }else addMsg('bot',esc(r.reply));
+  }catch(e){stop();fail(e,()=>runFree(text));}
+}
+
+function fail(err,retry){
+  addMsg('bot',`⚠️ 出了點問題：${esc(err.message)}\n（常見原因：授權/Key 無效、免費額度用完、或網路問題）`);
+  addChips([{label:'重試',acc:true,fn:retry},{label:'重設 API Key',fn:()=>{state.stage='key';askKey();}}]);
+  state.stage='idle';
+}
+</script>
+</body>
+</html>
