@@ -190,51 +190,28 @@ textarea:focus{outline:none;border-color:var(--accent)}
 
 <script>
 /* ═══════════ 更新日誌 ═══════════
+v2.4.0 2026-07-04
+  ・輸入框意圖辨識：說「授權碼」直接開輸入框；打「授權碼: XXX」自動驗證；
+    流程中輸入疑似授權碼會自動嘗試驗證並給出雙向指引
+  ・所有等待/忙碌階段輸入文字都有明確回應與下一步指引，不再沉默
+  ・打錯授權碼不會再清除這台電腦既有的正式授權
 v2.3.0 2026-07-04
-  ・新增免費試用模式：無授權碼可直接體驗 5 次生成任務（10張圖文=1次、主圖=1次）
-  ・每次任務完成後詢問是否繼續，並顯示剩餘試用次數
-  ・試用額度由伺服器計算，60 天後自動重置
+  ・免費試用模式：無授權碼可直接體驗 5 次生成任務（10張圖文=1次、主圖=1次）
+  ・每次任務完成後詢問是否繼續，顯示剩餘試用次數；試用額度 60 天自動重置
 v2.2.0 2026-07-04
   ・進階授權（pro）可檢視每張圖的完整提示詞（一般授權伺服器不回傳）
 v2.1.0 2026-07-04
   ・支援進階風格解鎖：輸入「/解鎖碼」可啟用進階授權限定風格
-  ・風格選項改為可動態更新
 v2.0.0 2026-07-04
-  ・架構升級：提示詞與流程邏輯全數移至 Cloudflare Worker 後端，
-    客戶端不再含任何核心資產（F12 無密可看）
-  ・新增授權碼系統：無有效授權碼無法使用任何功能（伺服器端驗證）
-  ・照片自動壓縮至 1280px 再上傳，加速生成
-  ・工作階段制：照片與企劃存於伺服器 24 小時
-v1.6.0 2026-07-03
-  ・提示詞改為開發者模式限定（輸入管理暗號切換），一般客戶不可見
-  ・部署版程式碼混淆（字串加密），保護提示詞與流程邏輯
-v1.5.0 2026-07-03
-  ・歡迎語更名「圖文生成室 AI」；標題列改為生圖供應商下拉選單
-  ・新增 PROVIDERS 供應商架構，未來可註冊 OpenAI/Seedream 等其他生圖 AI
-v1.4.1 2026-07-03
-  ・修復「先不用，繼續流程」按鈕無回應（現在會引導貼商品資料）
-  ・新增快捷指令：任何時候輸入「做主圖」即啟動白底主圖流程
-v1.4.0 2026-07-03
-  ・新增本機暫存區（IndexedDB）：每次產圖依「商品名＋時間戳」自動建資料夾
-  ・每張圖可按 ☆ 收藏進暫存區；右上角 🗂️ 開啟暫存區
-  ・暫存區支援：縮圖瀏覽、單張下載/移除、資料夾打包ZIP、勾選刪除資料夾、一鍵清空
-v1.3.0 2026-07-03
-  ・新增「忽略參考圖後製文字」規則：參考照片上的行銷標語、浮水印、
-    貼圖不再被複製到生成圖中；圖上文字一律以工具撰寫的繁中文案為準
-  ・介面顯示版本號與更新日誌
-v1.2.0 2026-07-03
-  ・白底主圖升級：AI 主體辨識（自動判斷商品、列出待移除干擾物）＋
-    風格勾選面板（背景單選、陰影/倒影/主標複選）
-  ・主圖完成後新增「開始製作圖文」引導按鈕
-v1.1.0 2026-07-03
-  ・新增白底主圖功能、模特（畫面主角）選填步驟
-  ・使用監測（Vercel Analytics + Google Sheet 事件回報）
-  ・aistudio.google.com 申請連結
-v1.0.0 2026-07-03
-  ・聊天式三階段流程：商品分析 → 企劃確認（免費）→ 10 張描述圖生成
-  ・逐圖修改輸入框、重抽、ZIP 打包；Key 每台電腦記憶＋手動清除
+  ・架構升級：提示詞與流程邏輯全數移至 Cloudflare Worker 後端
+  ・授權碼系統（伺服器端驗證）；照片自動壓縮；工作階段制
+v1.6.0 2026-07-03 提示詞改為開發者模式限定；部署版程式碼混淆
+v1.5.0 2026-07-03 更名「圖文生成室 AI」；生圖供應商下拉架構
+v1.4.x 2026-07-03 本機暫存區（收藏/資料夾/ZIP）；按鈕回應修復；做主圖快捷指令
+v1.3.0 2026-07-03 忽略參考圖後製文字規則；版本號與更新日誌
+v1.0~1.2 2026-07-03 聊天式三階段流程、白底主圖、模特選項、監測
 ════════════════════════════════ */
-const VERSION='v2.3.0';
+const VERSION='v2.4.0';
 /* ★★★ 部署 Cloudflare Worker 後，把 Worker 網址貼在下面引號內 ★★★
    例如：const WORKER_URL='https://listing-studio-api.你的帳號.workers.dev'; */
 const WORKER_URL='https://listing-studio-ai.senmao.workers.dev';
@@ -403,7 +380,7 @@ async function api(path,body){
       addChips([{label:'🎫 輸入授權碼',acc:true,fn:()=>askLic()}]);
       throw new Error('試用次數已用完');
     }
-    if(res.status===401){licStore.v='';state.lic='';state.stage='lic';askLic(d.error==='NEED_LIC'?'':d.error);}
+    if(res.status===401&&!state._soft){licStore.v='';state.lic='';state.stage='lic';askLic(d.error==='NEED_LIC'?'':d.error);}
     throw new Error(d.error==='NEED_LIC'?'需要授權碼':d.error);
   }
   if(path==='/t')track('text','text',1);
@@ -442,19 +419,26 @@ function askLic(errMsg){
   inp.focus();
 }
 async function setLic(code){
-  state.lic=code;
+  const bak={lic:state.lic,store:licStore.v};
+  state._soft=true;state.lic=code;
   const stop=typing('驗證授權中');
   try{
     const r=await api('/v',{});stop();
     licStore.v=code;state.pro=r.pro===true;state.trial=false;state.left=null;
     addMsg('bot',`授權成功 ✅${r.name?'（'+esc(r.name)+'）':''}`);
-    if(state.summary||state.prompts.length){addMsg('bot','已升級為正式授權，繼續目前的流程即可。');state.stage=state.prompts.length?'free':'idle';return;}
-    if(store.k){state.key=store.k;$('#keyBtn').classList.add('ok');$('#keyBtn').textContent='🔑 Key 已設定';state.stage='collect';
+    if(state.summary||state.prompts.length){addMsg('bot','已升級為正式授權，繼續目前的流程即可。');state.stage=state.prompts.length?'free':'idle';}
+    else if(store.k){state.key=store.k;$('#keyBtn').classList.add('ok');$('#keyBtn').textContent='🔑 Key 已設定';state.stage='collect';
       addMsg('bot',`這台電腦已設定過 Gemini Key，直接開始 ✅\n\n請貼上商品資料（名稱／簡介／賣點／規格），並用左下角 📷 上傳 1~3 張商品照。`);
     }else{state.stage='key';askKey();}
-  }catch(e){stop();state.stage='lic';/* askLic 已由 api() 於 401 時觸發 */
-    if(!e.message.includes('授權'))addMsg('bot','⚠️ '+esc(e.message));}
+  }catch(e){stop();
+    /* 驗證失敗：還原原本的授權狀態，不清除既有正式授權 */
+    state.lic=bak.lic;licStore.v=bak.store;
+    addMsg('bot',`⚠️ ${esc(e.message)}。請確認大小寫與拼字後再輸入一次（或打「授權碼: 你的碼」）。`);
+    if(!bak.lic)state.stage='lic';
+  }
+  state._soft=false;
 }
+
 function askKey(){
   const m=addMsg('bot',`歡迎使用<b>圖文生成室 AI</b> 🍌\n\n第一次使用請貼上你的 <b>Google Gemini API Key</b>\n👉 <a href="https://aistudio.google.com" target="_blank" rel="noopener">點此前往 aistudio.google.com 免費申請</a>（登入 Google → Get API Key → Create API Key → 複製）\n\n🔒 Key 只儲存在<b>這台電腦的瀏覽器</b>裡（設定一次即記住），不會存進檔案、也不會上傳到任何地方；右上角 🗑️ 可隨時清除。`);
   const inp=document.createElement('input');inp.className='keyin';inp.type='password';inp.placeholder='AIza...';
@@ -645,6 +629,23 @@ function handleSend(){
     runUnlock(t.slice(1));
     return;
   }
+  /* ── 意圖辨識：授權碼相關的自然語言 ── */
+  // 「授權碼: XXXX」→ 直接取碼驗證
+  const licInline=t.match(/授權碼\s*[:：]?\s*([A-Za-z0-9\-_]{3,32})\s*$/);
+  if(licInline&&/授權碼/.test(t)){
+    addMsg('user','（輸入授權碼）');
+    setLic(licInline[1]);return;
+  }
+  // 「授權碼」「我要輸入授權碼」「我有授權碼」→ 開輸入框
+  if(/^(我要|我想|我有)?(輸入)?授權碼$/.test(t.replace(/\s/g,''))){
+    addMsg('user',esc(t));askLic();return;
+  }
+  // 試用中直接打出疑似授權碼（純英數短字串）→ 靜默嘗試驗證
+  if((['collect','idle'].includes(state.stage)||(state.trial&&!['lic','key'].includes(state.stage)))
+     &&/^(?=.*[A-Za-z])[A-Za-z0-9\-_]{4,24}$/.test(t)&&!/[\u4e00-\u9fff]/.test(t)&&!/^AIza/.test(t)){
+    addMsg('user',esc(t));
+    tryLicSoft(t);return;
+  }
   addMsg('user',esc(t));
   /* 快捷指令：任何階段輸入「做主圖」即啟動白底主圖流程 */
   if(/^(做|製作|生成|我要做?)?(白底)?主圖$/.test(t.replace(/\s/g,''))){
@@ -656,6 +657,31 @@ function handleSend(){
   else if(state.stage==='collect'){state.product=t;runAnalyze();}
   else if(state.stage==='model'){state.model=t;document.querySelectorAll('.chips').forEach(c=>c.remove());runPrompts();}
   else if(state.stage==='plan'||state.stage==='free')runFree(t);
+  else if(state.stage==='busy'){addMsg('bot','⏳ 正在處理上一個任務，等我一下下，完成後再輸入。');}
+  else if(state.stage==='idle'){
+    addMsg('bot','請先從上方選擇一個<b>視覺風格</b>，選完就開始出圖。想重新來過也可以：');
+    addChips([{label:'重新輸入商品資料',fn:()=>{state.stage='collect';addMsg('bot','好，請重新貼上商品資料（名稱／簡介／賣點／規格）。');}}]);
+  }
+  else{addMsg('bot','我不太確定這個指令的意思 🤔 目前可以：貼上商品資料開始新任務、輸入「做主圖」、或輸入「授權碼」。');}
+}
+
+/* 試用者疑似輸入授權碼：靜默驗證，失敗給引導、不打斷流程 */
+async function tryLicSoft(code){
+  const stop=typing('這看起來像授權碼，驗證中');
+  const bak=state.lic;
+  state._soft=true;state.lic=code;
+  try{
+    const r=await api('/v',{});stop();
+    licStore.v=code;state.pro=r.pro===true;state.trial=false;state.left=null;
+    addMsg('bot',`授權成功 ✅${r.name?'（'+esc(r.name)+'）':''}${(state.summary||state.prompts.length)?'，繼續目前流程即可。':''}`);
+    if(!(state.summary||state.prompts.length)&&state.stage==='collect'){
+      addMsg('bot','請貼上商品資料（名稱／簡介／賣點／規格），並上傳商品照開始。');
+    }
+  }catch(e){stop();
+    state.lic=bak;
+    addMsg('bot',`「${esc(code)}」驗證沒有通過。\n・如果你是要輸入<b>授權碼</b>：請確認大小寫是否正確，或用「授權碼: 你的碼」格式再試一次\n・如果不是：忽略這則訊息，直接繼續原本的操作就好 👌`);
+  }
+  state._soft=false;
 }
 
 /* stage: analyze */
