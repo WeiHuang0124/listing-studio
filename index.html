@@ -190,6 +190,8 @@ textarea:focus{outline:none;border-color:var(--accent)}
 
 <script>
 /* ═══════════ 更新日誌 ═══════════
+v2.4.1 2026-07-04
+  ・新增「忘記授權碼」選項：引導聯繫賣家查詢補發（客服連結可於 SUPPORT_URL 修改）
 v2.4.0 2026-07-04
   ・輸入框意圖辨識：說「授權碼」直接開輸入框；打「授權碼: XXX」自動驗證；
     流程中輸入疑似授權碼會自動嘗試驗證並給出雙向指引
@@ -211,10 +213,12 @@ v1.4.x 2026-07-03 本機暫存區（收藏/資料夾/ZIP）；按鈕回應修復
 v1.3.0 2026-07-03 忽略參考圖後製文字規則；版本號與更新日誌
 v1.0~1.2 2026-07-03 聊天式三階段流程、白底主圖、模特選項、監測
 ════════════════════════════════ */
-const VERSION='v2.4.0';
+const VERSION='v2.4.1';
 /* ★★★ 部署 Cloudflare Worker 後，把 Worker 網址貼在下面引號內 ★★★
    例如：const WORKER_URL='https://listing-studio-api.你的帳號.workers.dev'; */
 const WORKER_URL='https://listing-studio-ai.senmao.workers.dev';
+/* 客服/購買聯繫連結（忘記授權碼、購買授權時引導至此），可自行修改 */
+const SUPPORT_URL='https://lin.ee/TRy2PTF';
 const $=s=>document.querySelector(s);
 const chat=$('#chat'), input=$('#input');
 const TEXT_MODEL='gemini-2.5-flash';
@@ -377,7 +381,7 @@ async function api(path,body){
     if(d.error==='TRIAL_END'){
       state.left=0;
       addMsg('bot','🎁 免費試用次數已用完。輸入<b>授權碼</b>即可無限使用（購買請洽賣家）：');
-      addChips([{label:'🎫 輸入授權碼',acc:true,fn:()=>askLic()}]);
+      addChips([{label:'🎫 輸入授權碼',acc:true,fn:()=>askLic()},{label:'❓ 忘記授權碼',fn:showForgot},{label:'🛒 我要購買授權',fn:()=>addMsg('bot',`歡迎透過 LINE 聯繫購買 👉 <a href="${SUPPORT_URL}" target="_blank" rel="noopener">聯繫賣家</a>`)}]);
       throw new Error('試用次數已用完');
     }
     if(res.status===401&&!state._soft){licStore.v='';state.lic='';state.stage='lic';askLic(d.error==='NEED_LIC'?'':d.error);}
@@ -416,7 +420,13 @@ function askLic(errMsg){
   const inp=document.createElement('input');inp.className='keyin';inp.placeholder='輸入授權碼後按 Enter';
   m.querySelector('.bubble').appendChild(inp);
   inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&inp.value.trim())setLic(inp.value.trim());});
+  addChips([{label:'❓ 忘記授權碼',fn:showForgot}]);
   inp.focus();
+}
+function showForgot(){
+  addMsg('user','忘記授權碼');
+  addMsg('bot',`別擔心，授權碼綁定你的購買記錄 📋\n\n請透過下方連結聯繫賣家，提供<b>購買時的姓名或訂單資訊</b>，即可查詢或補發授權碼：\n👉 <a href="${SUPPORT_URL}" target="_blank" rel="noopener">聯繫賣家（LINE）</a>`);
+  addChips([{label:'🎫 我想起來了，輸入授權碼',fn:()=>askLic()},{label:'🎁 先用免費試用',fn:()=>{addMsg('bot','好的，試用模式下所有功能都能體驗。直接貼上商品資料開始吧！');if(state.stage==='lic')state.stage=state.key?'collect':'key';if(state.stage==='key'&&!document.querySelector('.keyin'))askKey();}}]);
 }
 async function setLic(code){
   const bak={lic:state.lic,store:licStore.v};
