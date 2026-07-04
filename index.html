@@ -190,6 +190,8 @@ textarea:focus{outline:none;border-color:var(--accent)}
 
 <script>
 /* ═══════════ 更新日誌 ═══════════
+v2.2.0 2026-07-04
+  ・進階授權（pro）可檢視每張圖的完整提示詞（一般授權伺服器不回傳）
 v2.1.0 2026-07-04
   ・支援進階風格解鎖：輸入「/解鎖碼」可啟用進階授權限定風格
   ・風格選項改為可動態更新
@@ -228,7 +230,7 @@ v1.0.0 2026-07-03
   ・聊天式三階段流程：商品分析 → 企劃確認（免費）→ 10 張描述圖生成
   ・逐圖修改輸入框、重抽、ZIP 打包；Key 每台電腦記憶＋手動清除
 ════════════════════════════════ */
-const VERSION='v2.1.0';
+const VERSION='v2.2.0';
 /* ★★★ 部署 Cloudflare Worker 後，把 Worker 網址貼在下面引號內 ★★★
    例如：const WORKER_URL='https://listing-studio-api.你的帳號.workers.dev'; */
 const WORKER_URL='https://listing-studio-ai.senmao.workers.dev';
@@ -433,7 +435,7 @@ async function setLic(code){
   const stop=typing('驗證授權中');
   try{
     const r=await api('/v',{});stop();
-    licStore.v=code;
+    licStore.v=code;state.pro=r.pro===true;
     addMsg('bot',`授權成功 ✅${r.name?'（'+esc(r.name)+'）':''}`);
     if(store.k){state.key=store.k;$('#keyBtn').classList.add('ok');$('#keyBtn').textContent='🔑 Key 已設定';state.stage='collect';
       addMsg('bot',`這台電腦已設定過 Gemini Key，直接開始 ✅\n\n請貼上商品資料（名稱／簡介／賣點／規格），並用左下角 📷 上傳 1~3 張商品照。`);
@@ -559,6 +561,7 @@ window.genMainFromPanel=async()=>{
     track('image',$('#modelSel').value,1);
     state.mains[id].mid=r.mid;state.mains[id].img=r.img;
     card.querySelector('.imgwrap').innerHTML=`<img src="${r.img}" onclick="lbMain(${id})">`;
+    if(r.p)card.insertAdjacentHTML('beforeend',`<details><summary>提示詞</summary><pre id="pm${id}">${esc(r.p)}</pre></details>`);
   }catch(e){
     card.querySelector('.imgwrap').innerHTML=`<div class="loading">⚠️ ${esc(e.message).slice(0,60)}</div>`;
   }
@@ -594,7 +597,8 @@ window.reviseMain=async id=>{
   const card=$('#gm'+id);
   card.querySelector('.imgwrap').innerHTML=`<div class="loading"><div class="spinner"></div>依需求調整中…</div>`;
   try{
-    await api('/t',{task:'reviseMain',mid:state.mains[id].mid,req});
+    const rr=await api('/t',{task:'reviseMain',mid:state.mains[id].mid,req});
+    if(rr.p){const pre=$('#pm'+id);if(pre)pre.textContent=rr.p;}
     inp.value='';
     await runMain(id);
   }catch(e){
@@ -652,6 +656,7 @@ async function runUnlock(code){
   try{
     await ensureSession();
     const r=await api('/t',{task:'unlock',code});stop();
+    state.pro=true;
     addMsg('bot','✅ 進階風格已解鎖！');
     if(r.styles&&state.summary){
       state.summary.styles=r.styles;
@@ -689,7 +694,8 @@ function showPlan(){
   state.prompts.forEach(p=>{
     wrap.insertAdjacentHTML('beforeend',`<div class="pcard" id="pc${p.no}">
       <div class="top"><span class="n">${String(p.no).padStart(2,'0')}</span><h3>${IMG_TITLES[p.no]}</h3><span class="goal">${esc(p.goal||'')}</span></div>
-      <div class="cp"><div class="h">${esc(p.h||'')}</div><div class="s">${esc(p.s||'')}</div></div></div>`);
+      <div class="cp"><div class="h">${esc(p.h||'')}</div><div class="s">${esc(p.s||'')}</div></div>
+      ${p.p?`<details><summary>完整提示詞</summary><pre id="plan-pp${p.no}">${esc(p.p)}</pre></details>`:''}</div>`);
   });
   chat.appendChild(wrap);chat.scrollTop=chat.scrollHeight;
   addMsg('bot',`要調整任何一張，直接打字告訴我，例如「<b>第 4 張主標改成強調 24H 除臭</b>」，我會即時更新企劃。\n\n確認沒問題就按下面開始出圖（10 張，使用 <b>${$('#modelSel').selectedOptions[0].text}</b>，右上角可換模型）：`);
@@ -707,7 +713,8 @@ async function renderGallery(){
       <div class="meta"><span class="n">${String(p.no).padStart(2,'0')}</span><span class="t">${IMG_TITLES[p.no]}</span>
       <button class="gbtn star" id="star-d${p.no}" onclick="toggleStar('d${p.no}')" title="收藏到本機暫存區">☆</button>
       <button class="gbtn" onclick="dl(${p.no})">下載</button><button class="gbtn" onclick="regen(${p.no})">重抽</button></div>
-      <div class="fix"><input id="fx${p.no}" placeholder="輸入修改需求，例如：留白不要太多" onkeydown="if(event.key==='Enter')reviseOne(${p.no})"><button onclick="reviseOne(${p.no})">修改</button></div></div>`);
+      <div class="fix"><input id="fx${p.no}" placeholder="輸入修改需求，例如：留白不要太多" onkeydown="if(event.key==='Enter')reviseOne(${p.no})"><button onclick="reviseOne(${p.no})">修改</button></div>
+      ${p.p?`<details><summary>提示詞</summary><pre id="pp${p.no}">${esc(p.p)}</pre></details>`:''}</div>`);
   });
   chat.appendChild(g);chat.scrollTop=chat.scrollHeight;
   for(const p of state.prompts)await genOne(p.no);
@@ -728,7 +735,8 @@ window.reviseOne=async no=>{
   const card=$('#g'+no);
   card.querySelector('.imgwrap').innerHTML=`<div class="loading"><div class="spinner"></div>依需求調整中…</div>`;
   try{
-    await api('/t',{task:'revise',no,req});
+    const rr=await api('/t',{task:'revise',no,req});
+    if(rr.p){const pre=$('#pp'+no);if(pre)pre.textContent=rr.p;const pl=$('#plan-pp'+no);if(pl)pl.textContent=rr.p;}
     inp.value='';
     await genOne(no);
   }catch(e){
@@ -781,24 +789,6 @@ async function runFree(text){
         planCard.querySelector('.cp .h').textContent=r.h;
         planCard.querySelector('.cp .s').textContent=r.s;
       }
+      if(r.p){const pre=$('#pp'+r.no);if(pre)pre.textContent=r.p;const pl=$('#plan-pp'+r.no);if(pl)pl.textContent=r.p;}
       if(state.stage==='free'&&$('#g'+r.no)){
-        addMsg('bot',`✅ 第 ${r.no} 張已更新，重新出圖中…`);
-        await genOne(r.no);
-        $('#g'+r.no).scrollIntoView({behavior:'smooth',block:'center'});
-      }else{
-        addMsg('bot',`✅ 第 ${r.no} 張企劃已更新（主標：「${esc(r.h)}」）。還要調整其他張嗎？確認後按「開始生成」。`);
-        if(planCard)planCard.scrollIntoView({behavior:'smooth',block:'center'});
-        addChips([{label:'🍌 確認企劃，開始生成 10 張圖',acc:true,fn:()=>{addMsg('user','確認，開始出圖');renderGallery();}}]);
-      }
-    }else addMsg('bot',esc(r.reply));
-  }catch(e){stop();fail(e,()=>runFree(text));}
-}
-
-function fail(err,retry){
-  addMsg('bot',`⚠️ 出了點問題：${esc(err.message)}\n（常見原因：授權/Key 無效、免費額度用完、或網路問題）`);
-  addChips([{label:'重試',acc:true,fn:retry},{label:'重設 API Key',fn:()=>{state.stage='key';askKey();}}]);
-  state.stage='idle';
-}
-</script>
-</body>
-</html>
+        addMsg('bot',`✅ 第 ${r.no} 張已更新，重新出圖中…
