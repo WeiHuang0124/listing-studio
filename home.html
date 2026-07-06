@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>圖文生成室 AI — 蝦皮商品圖文，聊天式 3 分鐘生成</title>
+<title>圖文生成室 AI — 電商商品圖文，聊天式 3 分鐘生成</title>
 <meta name="description" content="貼上商品資料，AI 聊天引導，3 分鐘生成白底主圖＋10 張描述圖。免費試用 5 次，買斷永久使用。">
 <!-- ★★★ 部署後把兩個網址填好 ★★★ -->
 <script>
@@ -74,10 +74,11 @@ section{padding:64px 0}
 .fcard p{font-size:14.5px;color:var(--sub)}
 
 /* steps */
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;counter-reset:s}
-.step{position:relative;padding-top:8px}
-.step .n{font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:500}
-.step h3{font-size:19px;font-weight:900;margin:10px 0 8px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;counter-reset:s}
+.step{position:relative;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px 24px;transition:.15s}
+.step:hover{transform:translateY(-2px);box-shadow:0 12px 30px -16px rgba(0,0,0,.2)}
+.step .n{display:inline-block;font-family:var(--mono);font-size:12px;color:var(--accent);font-weight:600;background:var(--accent-soft,#FBE9E2);padding:4px 12px;border-radius:99px;margin-bottom:14px}
+.step h3{font-size:19px;font-weight:900;margin:0 0 8px}
 .step p{font-size:14.5px;color:var(--sub)}
 
 /* pricing */
@@ -145,7 +146,7 @@ footer a{color:var(--sub)}
 </div></nav>
 
 <header class="hero"><div class="wrap">
-  <div class="eyebrow">FOR SHOPEE SELLERS</div>
+  <div class="eyebrow">FOR E-COMMERCE SELLERS</div>
   <h1><span class="nb">商品圖文，</span><span class="nb"><em>用聊的</em>就生出來。</span></h1>
   <p class="lead">貼上商品資料、傳一張照片，AI 一步步引導你完成白底主圖與 10 張描述圖。不用會修圖，不用等美編。</p>
   <div class="cta-row">
@@ -174,7 +175,7 @@ footer a{color:var(--sub)}
     <h2>一套商品圖，不該花掉你一個晚上。</h2>
   </div>
   <div class="feat">
-    <div class="fcard"><div class="ic">🖼️</div><h3>白底主圖，一鍵去雜</h3><p>AI 自動辨識商品主體、移除背景雜物（連入鏡的寵物都能移掉），輸出符合蝦皮規範的純白主圖。</p></div>
+    <div class="fcard"><div class="ic">🖼️</div><h3>白底主圖，一鍵去雜</h3><p>AI 自動辨識商品主體、移除背景雜物（連入鏡的寵物都能移掉），輸出符合各大電商平台規範的純白主圖。</p></div>
     <div class="fcard"><div class="ic">📑</div><h3>10 張描述圖成套</h3><p>痛點鉤子、三大賣點、競品對比、使用步驟、規格 CTA——整套版面與色調一致，不再東拼西湊。</p></div>
     <div class="fcard"><div class="ic">🧠</div><h3>不會寫文案？AI 幫你想</h3><p>只要一句「幫我規劃」，AI 自動從商品名發想賣點、定位與客群，整理成專業商品簡介——連文案都不用煩惱。</p></div>
     <div class="fcard"><div class="ic">✏️</div><h3>嫌哪張改哪張</h3><p>PRO 版每張圖下方有輸入框，打「留白多一點」「主標改紅色」，那張圖就自動重做，不必重跑整套。</p></div>
@@ -255,7 +256,7 @@ footer a{color:var(--sub)}
 </section>
 
 <footer><div class="wrap">
-  圖文生成室 AI · 蝦皮賣家的 AI 商品圖文工具<br>
+  圖文生成室 AI · 電商賣家的 AI 商品圖文工具<br>
   <a id="footLine" href="#" target="_blank">客服 LINE</a> · 授權為數位商品，售出恕不退換
 </div></footer>
 
