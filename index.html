@@ -213,7 +213,7 @@ v1.4.x 2026-07-03 本機暫存區（收藏/資料夾/ZIP）；按鈕回應修復
 v1.3.0 2026-07-03 忽略參考圖後製文字規則；版本號與更新日誌
 v1.0~1.2 2026-07-03 聊天式三階段流程、白底主圖、模特選項、監測
 ════════════════════════════════ */
-const VERSION='v2.5.0';
+const VERSION='v2.6.0';
 /* ★★★ 部署 Cloudflare Worker 後，把 Worker 網址貼在下面引號內 ★★★
    例如：const WORKER_URL='https://listing-studio-api.你的帳號.workers.dev'; */
 const WORKER_URL='https://listing-studio-ai.senmao.workers.dev';
@@ -226,6 +226,7 @@ const chat=$('#chat'), input=$('#input');
 const TEXT_MODEL='gemini-2.5-flash';
 const state={stage:'lic',lic:'',key:'',sid:'',sessionDirty:false,product:'',model:'',photos:[],summary:null,style:null,prompts:[],imgs:{},trial:false,left:null,tid:'',boss:false};
 state.tid=(()=>{try{let t=localStorage.getItem('tid');if(!t){t=Math.random().toString(36).slice(2,12);localStorage.setItem('tid',t);}return t;}catch(e){return 'anon'+Math.random().toString(36).slice(2,8)}})();
+state.dev=(()=>{try{let d=localStorage.getItem('dev');if(!d){d=Math.random().toString(36).slice(2,14);localStorage.setItem('dev',d);}return d;}catch(e){return 'd'+Math.random().toString(36).slice(2,10)}})();
 
 /* ═══ 使用監測（選填）═══
    到 Google Apps Script 部署好收集端後，把網址貼進 TRACK_URL（見「監測平台設定說明」）。
@@ -240,6 +241,12 @@ function track(event,model,n){
 }
 track('visit');
 $('#verTag').textContent=VERSION;
+/* 席位心跳：正式授權每 5 分鐘回報一次在線，避免長任務中席位逾時 */
+let _hb=null;
+function startHeartbeat(){
+  if(_hb)clearInterval(_hb);
+  _hb=setInterval(()=>{if(state.lic&&!state.trial){fetch(WORKER_URL+'/v',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lic:state.lic,dev:state.dev})}).catch(()=>{});}},300000);
+}
 function applyTier(){const ab=$('#archiveBtn');if(ab)ab.style.display=state.pro?'':'none';}
 applyTier();
 if(HOME_URL){$('#homeLink').href=HOME_URL;}else{$('#homeLink').removeAttribute('href');$('#homeLink').style.cursor='default';}
@@ -380,9 +387,18 @@ const licStore={get v(){try{return localStorage.getItem('lic')||''}catch(e){retu
 
 async function api(path,body){
   const res=await fetch(WORKER_URL+path,{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({lic:state.lic,tid:state.tid,key:state.key,sid:state.sid,...body})});
+    body:JSON.stringify({lic:state.lic,tid:state.tid,dev:state.dev,key:state.key,sid:state.sid,...body})});
   let d;try{d=await res.json();}catch(e){throw new Error('伺服器回應異常，請稍後再試');}
   if(d.error){
+    if(d.seatFull){
+      addMsg('bot','⚠️ '+esc(d.error));
+      throw new Error('同時上線裝置已達上限');
+    }
+    if(res.status===403&&/停用/.test(d.error||'')){
+      addMsg('bot','🚫 '+esc(d.error));
+      addChips([{label:'聯繫客服',fn:()=>window.open(SUPPORT_URL,'_blank')}]);
+      throw new Error(d.error);
+    }
     if(d.error==='TRIAL_END'){
       state.left=0;
       addMsg('bot','🎁 免費試用次數已用完。輸入<b>授權碼</b>即可無限使用（購買請洽賣家）：');
@@ -439,7 +455,7 @@ async function setLic(code){
   const stop=typing('驗證授權中');
   try{
     const r=await api('/v',{});stop();
-    licStore.v=code;state.pro=r.pro===true;state.boss=r.boss===true;state.trial=false;state.left=null;applyTier();
+    licStore.v=code;state.pro=r.pro===true;state.boss=r.boss===true;state.trial=false;state.left=null;applyTier();startHeartbeat();
     addMsg('bot',`授權成功 ✅${r.name?'（'+esc(r.name)+'）':''}`);
     if(state.summary||state.prompts.length){addMsg('bot','已升級為正式授權，繼續目前的流程即可。');state.stage=state.prompts.length?'free':'idle';}
     else if(store.k){state.key=store.k;$('#keyBtn').classList.add('ok');$('#keyBtn').textContent='🔑 Key 已設定';state.stage='collect';
@@ -687,7 +703,7 @@ async function tryLicSoft(code){
   state._soft=true;state.lic=code;
   try{
     const r=await api('/v',{});stop();
-    licStore.v=code;state.pro=r.pro===true;state.boss=r.boss===true;state.trial=false;state.left=null;applyTier();
+    licStore.v=code;state.pro=r.pro===true;state.boss=r.boss===true;state.trial=false;state.left=null;applyTier();startHeartbeat();
     addMsg('bot',`授權成功 ✅${r.name?'（'+esc(r.name)+'）':''}${(state.summary||state.prompts.length)?'，繼續目前流程即可。':''}`);
     if(!(state.summary||state.prompts.length)&&state.stage==='collect'){
       addMsg('bot','請貼上商品資料（名稱／簡介／賣點／規格），並上傳商品照開始。');

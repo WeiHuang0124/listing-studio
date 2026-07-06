@@ -112,7 +112,7 @@ td.mono{font-family:var(--mono);font-size:12.5px}
     <div class="panel" id="pLic" style="display:none">
       <div class="toolbar">
         <input id="newName" placeholder="客戶名稱/備註">
-        <select id="newPro"><option value="">一般版</option><option value="1">PRO 版</option></select>
+        <select id="newPro"><option value="">一般版</option><option value="1">PRO 版</option><option value="2">BOSS</option></select>
         <button class="btn p sm" onclick="addLic()">＋ 手動開立授權碼</button>
         <span class="sp" style="flex:1"></span>
         <input id="fLic" placeholder="搜尋授權碼/名稱" oninput="renderLics()">
@@ -183,27 +183,50 @@ function renderLics(){
   const rows=LICS.filter(l=>!q||[l.code,l.name].join(' ').toLowerCase().includes(q));
   const body=document.getElementById('licBody');
   if(!rows.length){body.innerHTML='<div class="empty">尚無授權碼</div>';return;}
-  body.innerHTML=`<table><thead><tr><th>授權碼</th><th>名稱/備註</th><th>方案</th><th>來源訂單</th><th></th></tr></thead><tbody>`+
-    rows.map(l=>`<tr>
+  body.innerHTML=`<table><thead><tr><th>授權碼</th><th>名稱/備註</th><th>方案</th><th>在線/上限</th><th>狀態</th><th>操作</th></tr></thead><tbody>`+
+    rows.map(l=>{
+      const tier=l.boss?'<span class="pill pro">BOSS</span>':(l.pro?'<span class="pill pro">PRO</span>':'一般版');
+      const onl=l.boss?'—':`<span style="font-weight:700;color:${(l.online||0)>=(l.seats||2)?'#C9820E':'#0E7C66'}">${l.online||0}</span> / ${l.seats||2}`;
+      const status=l.suspended?'<span class="pill failed">已停用</span>':'<span class="pill paid">正常</span>';
+      return `<tr>
       <td class="mono">${esc(l.code)} <button class="copy" onclick="cp('${l.code}')">複製</button></td>
       <td>${esc(l.name||'—')}</td>
-      <td>${l.pro?'<span class="pill pro">PRO</span>':'一般版'}</td>
-      <td class="mono">${esc(l.order||'手動')}</td>
-      <td><button class="btn o sm" onclick="delLic('${l.code}')">停用</button></td>
-    </tr>`).join('')+'</tbody></table>';
+      <td>${tier}</td>
+      <td class="mono">${onl}</td>
+      <td>${status}</td>
+      <td style="white-space:nowrap">
+        ${l.boss?'':`<button class="btn o sm" onclick="resetSeat('${l.code}')" title="清除在線裝置記錄">釋放席位</button>
+        <button class="btn o sm" onclick="setSeats('${l.code}',${l.seats||2})">改上限</button>
+        <button class="btn o sm" onclick="toggleSuspend('${l.code}',${l.suspended?false:true})" style="${l.suspended?'':'border-color:#C33F1D;color:#C33F1D'}">${l.suspended?'解除停用':'停用'}</button>`}
+        <button class="btn o sm" onclick="delLic('${l.code}')" style="border-color:#C33F1D;color:#C33F1D">刪除</button>
+      </td>
+    </tr>`;}).join('')+`</tbody></table>
+    <div class="note">💡 停權依據＝<b>同時在線裝置數超過上限</b>（預設 2 台，10 分鐘內有活動視為在線）。可跟客戶解釋：授權碼不鎖裝置，但同一時間最多 N 台。誤判時按「釋放席位」立即解鎖；惡意外流可「停用」整組碼。</div>`;
 }
 
 async function addLic(){
   const name=document.getElementById('newName').value.trim();
-  const pro=document.getElementById('newPro').value==='1';
-  const r=await api('addlic',{name,pro});
+  const sel=document.getElementById('newPro').value;
+  const r=await api('addlic',{name,pro:sel==='1'||sel==='2',boss:sel==='2'});
   if(r.ok){alert('已開立授權碼：'+r.code);document.getElementById('newName').value='';await loadLics();}
   else alert(r.error||'失敗');
 }
 async function delLic(code){
-  if(!confirm('確定停用授權碼 '+code+' ？此動作立即生效且不可復原。'))return;
-  const r=await api('dellic',{code});
-  if(r.ok)await loadLics();
+  if(!confirm('確定「刪除」授權碼 '+code+' ？立即失效且無法復原（客戶將完全無法使用）。'))return;
+  const r=await api('dellic',{code});if(r.ok)await loadLics();
+}
+async function toggleSuspend(code,suspend){
+  if(!confirm((suspend?'停用':'解除停用')+'授權碼 '+code+' ？'))return;
+  const r=await api('suspend',{code,suspend});if(r.ok)await loadLics();
+}
+async function resetSeat(code){
+  const r=await api('resetseat',{code});if(r.ok){alert('已釋放 '+code+' 的在線裝置記錄');await loadLics();}
+}
+async function setSeats(code,cur){
+  const n=prompt('設定 '+code+' 的同時在線上限（1~20）：',cur);
+  if(n===null)return;
+  const r=await api('setseats',{code,seats:parseInt(n)});
+  if(r.ok){alert('上限已設為 '+r.seats+' 台');await loadLics();}
 }
 function cp(t){navigator.clipboard.writeText(t);}
 function switchTab(t){
