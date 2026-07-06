@@ -213,7 +213,7 @@ v1.4.x 2026-07-03 本機暫存區（收藏/資料夾/ZIP）；按鈕回應修復
 v1.3.0 2026-07-03 忽略參考圖後製文字規則；版本號與更新日誌
 v1.0~1.2 2026-07-03 聊天式三階段流程、白底主圖、模特選項、監測
 ════════════════════════════════ */
-const VERSION='v2.4.3';
+const VERSION='v2.5.0';
 /* ★★★ 部署 Cloudflare Worker 後，把 Worker 網址貼在下面引號內 ★★★
    例如：const WORKER_URL='https://listing-studio-api.你的帳號.workers.dev'; */
 const WORKER_URL='https://listing-studio-ai.senmao.workers.dev';
@@ -224,7 +224,7 @@ const HOME_URL='/home.html';
 const $=s=>document.querySelector(s);
 const chat=$('#chat'), input=$('#input');
 const TEXT_MODEL='gemini-2.5-flash';
-const state={stage:'lic',lic:'',key:'',sid:'',sessionDirty:false,product:'',model:'',photos:[],summary:null,style:null,prompts:[],imgs:{},trial:false,left:null,tid:''};
+const state={stage:'lic',lic:'',key:'',sid:'',sessionDirty:false,product:'',model:'',photos:[],summary:null,style:null,prompts:[],imgs:{},trial:false,left:null,tid:'',boss:false};
 state.tid=(()=>{try{let t=localStorage.getItem('tid');if(!t){t=Math.random().toString(36).slice(2,12);localStorage.setItem('tid',t);}return t;}catch(e){return 'anon'+Math.random().toString(36).slice(2,8)}})();
 
 /* ═══ 使用監測（選填）═══
@@ -240,6 +240,8 @@ function track(event,model,n){
 }
 track('visit');
 $('#verTag').textContent=VERSION;
+function applyTier(){const ab=$('#archiveBtn');if(ab)ab.style.display=state.pro?'':'none';}
+applyTier();
 if(HOME_URL){$('#homeLink').href=HOME_URL;}else{$('#homeLink').removeAttribute('href');$('#homeLink').style.cursor='default';}
 
 /* ============ 生圖供應商架構（未來擴充其他生圖 AI 在此註冊） ============ */
@@ -437,7 +439,7 @@ async function setLic(code){
   const stop=typing('驗證授權中');
   try{
     const r=await api('/v',{});stop();
-    licStore.v=code;state.pro=r.pro===true;state.trial=false;state.left=null;
+    licStore.v=code;state.pro=r.pro===true;state.boss=r.boss===true;state.trial=false;state.left=null;applyTier();
     addMsg('bot',`授權成功 ✅${r.name?'（'+esc(r.name)+'）':''}`);
     if(state.summary||state.prompts.length){addMsg('bot','已升級為正式授權，繼續目前的流程即可。');state.stage=state.prompts.length?'free':'idle';}
     else if(store.k){state.key=store.k;$('#keyBtn').classList.add('ok');$('#keyBtn').textContent='🔑 Key 已設定';state.stage='collect';
@@ -569,9 +571,9 @@ window.genMainFromPanel=async()=>{
   g.innerHTML=`<div class="gcard" id="gm${id}">
     <div class="imgwrap"><div class="loading"><div class="spinner"></div>生成中…</div></div>
     <div class="meta"><span class="n">主圖</span><span class="t">${esc(label)}</span>
-    <button class="gbtn star" id="star-m${id}" onclick="toggleStar('m${id}')" title="收藏到本機暫存區">☆</button>
+    ${state.pro?`<button class="gbtn star" id="star-m${id}" onclick="toggleStar('m${id}')" title="收藏到本機暫存區">☆</button>`:''}
     <button class="gbtn" onclick="dlMain(${id})">下載</button><button class="gbtn" onclick="runMain(${id})">重抽</button></div>
-    <div class="fix"><input id="fm${id}" placeholder="輸入修改需求，例如：商品再大一點" onkeydown="if(event.key==='Enter')reviseMain(${id})"><button onclick="reviseMain(${id})">修改</button></div></div>`;
+    ${state.pro?`<div class="fix"><input id="fm${id}" placeholder="輸入修改需求，例如：商品再大一點" onkeydown="if(event.key==='Enter')reviseMain(${id})"><button onclick="reviseMain(${id})">修改</button></div>`:''}</div>`;
   chat.appendChild(g);chat.scrollTop=chat.scrollHeight;
   const card=$('#gm'+id);
   try{
@@ -685,7 +687,7 @@ async function tryLicSoft(code){
   state._soft=true;state.lic=code;
   try{
     const r=await api('/v',{});stop();
-    licStore.v=code;state.pro=r.pro===true;state.trial=false;state.left=null;
+    licStore.v=code;state.pro=r.pro===true;state.boss=r.boss===true;state.trial=false;state.left=null;applyTier();
     addMsg('bot',`授權成功 ✅${r.name?'（'+esc(r.name)+'）':''}${(state.summary||state.prompts.length)?'，繼續目前流程即可。':''}`);
     if(!(state.summary||state.prompts.length)&&state.stage==='collect'){
       addMsg('bot','請貼上商品資料（名稱／簡介／賣點／規格），並上傳商品照開始。');
@@ -720,8 +722,8 @@ async function runUnlock(code){
   try{
     await ensureSession();
     const r=await api('/t',{task:'unlock',code});stop();
-    state.pro=true;
-    addMsg('bot','✅ 進階風格已解鎖！');
+    state.pro=true;if(r.boss)state.boss=true;applyTier();
+    addMsg('bot',r.boss?'✅ BOSS 權限已解鎖！':'✅ PRO 已解鎖！');
     if(r.styles&&state.summary){
       state.summary.styles=r.styles;
       addMsg('bot','風格選項已更新，請重新選擇：');
@@ -734,6 +736,7 @@ async function runUnlock(code){
 
 /* stage: optional subject/model */
 function askModel(){
+  if(!state.pro){state.model='';runPrompts();return;}
   state.stage='model';
   addMsg('bot',`最後一個選填項：要指定<b>畫面主角（模特）</b>嗎？\n\n可以是動物、人物或任何主體，AI 會讓主角在情境圖中與商品自然互動，整套形象保持一致。\n\n直接在下方輸入，例如「一隻橘貓」「25歲女生居家穿搭」「柴犬」；不需要就按跳過。`);
   addChips([{label:'跳過（AI 自行決定）',fn:()=>{state.model='';addMsg('user','跳過');runPrompts();}}]);
@@ -776,9 +779,9 @@ async function renderGallery(){
     g.insertAdjacentHTML('beforeend',`<div class="gcard" id="g${p.no}">
       <div class="imgwrap"><div class="loading"><div class="spinner"></div>排隊中…</div></div>
       <div class="meta"><span class="n">${String(p.no).padStart(2,'0')}</span><span class="t">${IMG_TITLES[p.no]}</span>
-      <button class="gbtn star" id="star-d${p.no}" onclick="toggleStar('d${p.no}')" title="收藏到本機暫存區">☆</button>
+      ${state.pro?`<button class="gbtn star" id="star-d${p.no}" onclick="toggleStar('d${p.no}')" title="收藏到本機暫存區">☆</button>`:''}
       <button class="gbtn" onclick="dl(${p.no})">下載</button><button class="gbtn" onclick="regen(${p.no})">重抽</button></div>
-      <div class="fix"><input id="fx${p.no}" placeholder="輸入修改需求，例如：留白不要太多" onkeydown="if(event.key==='Enter')reviseOne(${p.no})"><button onclick="reviseOne(${p.no})">修改</button></div>
+      ${state.pro?`<div class="fix"><input id="fx${p.no}" placeholder="輸入修改需求，例如：留白不要太多" onkeydown="if(event.key==='Enter')reviseOne(${p.no})"><button onclick="reviseOne(${p.no})">修改</button></div>`:''}
       ${p.p?`<details><summary>提示詞</summary><pre id="pp${p.no}">${esc(p.p)}</pre></details>`:''}</div>`);
   });
   chat.appendChild(g);chat.scrollTop=chat.scrollHeight;
@@ -786,7 +789,7 @@ async function renderGallery(){
   const btns=document.createElement('div');btns.className='cardbtns';
   btns.innerHTML=`<button class="mini fill" onclick="dlZip(this)">📦 打包下載全部（ZIP）</button>`;
   chat.appendChild(btns);
-  addMsg('bot','全部完成 ✅\n\n・每張圖下方有<b>修改輸入框</b>：輸入需求（例如「留白不要太多」「主標改紅色」）按修改或 Enter，會自動重新出圖\n・「重抽」＝同提示詞再抽一次\n・點圖可放大檢視');
+  addMsg('bot',state.pro?'全部完成 ✅\n\n・每張圖下方有<b>修改輸入框</b>：輸入需求（例如「留白不要太多」）按修改或 Enter，會自動重新出圖\n・「重抽」＝同提示詞再抽一次\n・點圖可放大檢視、可用 ☆ 收藏到暫存區':'全部完成 ✅\n\n・不滿意可按「重抽」再抽一次\n・點圖可放大檢視\n💎 升級 PRO 版可<b>逐張輸入指令客製修改</b>、自訂模特、使用暫存區');
   askContinue();
   chat.scrollTop=chat.scrollHeight;
   state.stage='free';
