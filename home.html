@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>圖文生成室 AI — 蝦皮商品圖文，聊天式 3 分鐘生成</title>
+<meta name="description" content="貼上商品資料，AI 聊天引導，3 分鐘生成白底主圖＋10 張描述圖。免費試用 5 次，買斷永久使用。">
+<!-- ★★★ 部署後把兩個網址填好 ★★★ -->
+<script>
+  const TOOL_URL='https://listing-studio-psi.vercel.app';        // 工具本體網址
+  const API_URL ='https://listing-studio-ai.senmao.workers.dev'; // Worker 後端（金流）
+  const LINE_URL='https://lin.ee/Z0PW42V';
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Zen+Kaku+Gothic+Antique:wght@700;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#16181D; --paper:#FAF8F3; --card:#FFFFFF; --line:#E7E3D9;
+  --sub:#6B6F78; --accent:#E8552F; --accent-d:#C33F1D; --mint:#0E7C66; --sand:#EFE7D6;
+  --mono:'JetBrains Mono',monospace; --disp:'Zen Kaku Gothic Antique',sans-serif; --sans:'Noto Sans TC',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--paper);color:var(--ink);line-height:1.7;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+a{color:inherit}
+
+/* nav */
+nav{position:sticky;top:0;z-index:50;background:rgba(250,248,243,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;height:64px;gap:20px}
+.logo{font-family:var(--disp);font-weight:900;font-size:19px;letter-spacing:-.01em}
+.logo b{color:var(--accent)}
+nav .sp{flex:1}
+nav a.nl{font-size:14px;font-weight:500;color:var(--sub);text-decoration:none}
+nav a.nl:hover{color:var(--ink)}
+.btn{display:inline-block;font-family:var(--sans);font-weight:700;font-size:15px;border:none;border-radius:11px;padding:12px 22px;cursor:pointer;text-decoration:none;text-align:center;transition:.15s}
+.btn.p{background:var(--accent);color:#fff}
+.btn.p:hover{background:var(--accent-d);transform:translateY(-1px)}
+.btn.o{background:transparent;color:var(--ink);border:1.5px solid var(--ink)}
+.btn.o:hover{background:var(--ink);color:#fff}
+.btn.sm{padding:9px 16px;font-size:14px;border-radius:9px}
+
+/* hero */
+header.hero{padding:76px 0 60px;position:relative;overflow:hidden}
+.hero .eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:.22em;color:var(--accent);text-transform:uppercase;margin-bottom:22px}
+.hero h1{font-family:var(--disp);font-weight:900;font-size:clamp(38px,6vw,68px);line-height:1.12;letter-spacing:-.02em;max-width:15ch}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.hero p.lead{font-size:clamp(17px,2.2vw,20px);color:var(--sub);margin:26px 0 34px;max-width:44ch}
+.hero .cta-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.hero .tiny{font-size:13px;color:var(--sub);margin-top:16px}
+.hero .tiny b{color:var(--mint)}
+.hero-art{margin-top:56px;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--card);box-shadow:0 24px 60px -30px rgba(0,0,0,.28)}
+.hero-art .bar{height:38px;background:var(--sand);display:flex;align-items:center;gap:7px;padding:0 15px;border-bottom:1px solid var(--line)}
+.hero-art .bar i{width:11px;height:11px;border-radius:50%;background:#CFC7B5;display:block}
+.chatdemo{padding:26px;display:flex;flex-direction:column;gap:12px}
+.cd{max-width:78%;padding:11px 15px;border-radius:13px;font-size:14.5px;line-height:1.6}
+.cd.b{background:var(--sand);border-top-left-radius:4px;align-self:flex-start}
+.cd.u{background:var(--ink);color:#fff;border-top-right-radius:4px;align-self:flex-end}
+.cd .k{color:var(--accent);font-weight:700}
+.thumbs{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:6px}
+.thumbs div{aspect-ratio:1;border-radius:8px;background:linear-gradient(135deg,var(--sand),#fff);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:var(--sub)}
+
+/* section shell */
+section{padding:64px 0}
+.sec-head{max-width:52ch;margin-bottom:44px}
+.sec-head .lbl{font-family:var(--mono);font-size:12px;letter-spacing:.2em;color:var(--sub);text-transform:uppercase}
+.sec-head h2{font-family:var(--disp);font-weight:900;font-size:clamp(28px,4vw,40px);line-height:1.2;margin-top:12px;letter-spacing:-.01em}
+
+/* problem→solution grid */
+.feat{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.fcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px}
+.fcard .ic{width:44px;height:44px;border-radius:11px;background:var(--sand);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:16px}
+.fcard h3{font-size:18px;font-weight:900;margin-bottom:8px}
+.fcard p{font-size:14.5px;color:var(--sub)}
+
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;counter-reset:s}
+.step{position:relative;padding-top:8px}
+.step .n{font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:500}
+.step h3{font-size:19px;font-weight:900;margin:10px 0 8px}
+.step p{font-size:14.5px;color:var(--sub)}
+
+/* pricing */
+.price-wrap{display:grid;grid-template-columns:repeat(2,1fr);gap:22px;max-width:760px;margin:0 auto}
+.plan{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:32px;display:flex;flex-direction:column}
+.plan.hot{border:2px solid var(--accent);position:relative}
+.plan.hot::before{content:'最超值';position:absolute;top:-13px;left:32px;background:var(--accent);color:#fff;font-size:12px;font-weight:700;padding:4px 14px;border-radius:99px}
+.plan h3{font-family:var(--disp);font-weight:900;font-size:22px}
+.plan .early{font-size:13px;color:var(--mint);font-weight:700;margin-top:4px}
+.plan .price{display:flex;align-items:baseline;gap:8px;margin:18px 0 4px}
+.plan .price .now{font-family:var(--disp);font-weight:900;font-size:42px}
+.plan .price .was{font-size:16px;color:var(--sub);text-decoration:line-through}
+.plan .unit{font-size:13px;color:var(--sub);margin-bottom:20px}
+.plan ul{list-style:none;margin:0 0 24px;display:flex;flex-direction:column;gap:11px;flex:1}
+.plan li{font-size:14.5px;padding-left:26px;position:relative}
+.plan li::before{content:'✓';position:absolute;left:0;color:var(--mint);font-weight:900}
+.plan li.pro::before{content:'★';color:var(--accent)}
+
+/* faq */
+.faq{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:2px}
+details.q{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:4px 20px;margin-bottom:10px}
+details.q summary{font-weight:700;font-size:15.5px;padding:16px 0;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details.q summary::-webkit-details-marker{display:none}
+details.q summary::after{content:'+';font-size:22px;color:var(--accent);font-weight:400}
+details.q[open] summary::after{content:'−'}
+details.q p{font-size:14.5px;color:var(--sub);padding:0 0 18px}
+
+/* final cta */
+.final{background:var(--ink);color:#fff;border-radius:24px;padding:56px 40px;text-align:center;margin:0 24px}
+.final h2{font-family:var(--disp);font-weight:900;font-size:clamp(26px,4vw,38px);line-height:1.2}
+.final p{color:#C9CCD2;margin:16px 0 30px;font-size:16px}
+.final .btn.p{background:var(--accent)}
+.final .lnk{display:block;margin-top:18px;font-size:13px;color:#9AA0A8;text-decoration:none}
+
+footer{padding:40px 0 60px;text-align:center;color:var(--sub);font-size:13px}
+footer a{color:var(--sub)}
+
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal.on{display:flex}
+.modal .box{background:#fff;border-radius:18px;padding:32px;max-width:400px;width:100%}
+.modal h3{font-family:var(--disp);font-weight:900;font-size:22px;margin-bottom:6px}
+.modal p{font-size:14px;color:var(--sub);margin-bottom:18px}
+.modal label{font-size:13px;font-weight:700;display:block;margin-bottom:6px}
+.modal input{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:12px 14px;font-size:15px;font-family:var(--sans);margin-bottom:16px}
+.modal input:focus{outline:none;border-color:var(--accent)}
+.modal .x{float:right;cursor:pointer;color:var(--sub);font-size:20px;line-height:1;border:none;background:none}
+
+@media(max-width:820px){
+  .feat,.steps{grid-template-columns:1fr}
+  .price-wrap{grid-template-columns:1fr}
+  nav a.nl{display:none}
+}
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <span class="logo">圖文生成室 <b>AI</b></span>
+  <span class="sp"></span>
+  <a class="nl" href="#how">運作方式</a>
+  <a class="nl" href="#price">方案</a>
+  <a class="nl" href="#faq">常見問題</a>
+  <a class="btn p sm" id="navTry" href="#">免費試用</a>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <div class="eyebrow">FOR SHOPEE SELLERS</div>
+  <h1>商品圖文，<em>用聊的</em>就生出來。</h1>
+  <p class="lead">貼上商品資料、傳一張照片，AI 一步步引導你完成白底主圖與 10 張描述圖。不用會修圖，不用等美編。</p>
+  <div class="cta-row">
+    <a class="btn p" id="heroTry" href="#">🎁 免費試用 5 次</a>
+    <a class="btn o" href="#price">看方案</a>
+  </div>
+  <p class="tiny">不用註冊、不用信用卡 · <b>試用即完整功能</b></p>
+
+  <div class="hero-art">
+    <div class="bar"><i></i><i></i><i></i></div>
+    <div class="chatdemo">
+      <div class="cd b">請貼上商品資料，並上傳一張商品照 📷</div>
+      <div class="cd u">森喵木薯豆腐砂，主打雙重除臭、低粉塵、快速結團</div>
+      <div class="cd b">收到！<span class="k">賣點已整理</span>，選一個視覺風格，我開始出圖：</div>
+      <div class="cd b" style="max-width:92%">
+        白底主圖＋10 張描述圖生成中…
+        <div class="thumbs"><div>主圖</div><div>鉤子</div><div>賣點</div><div>對比</div><div>CTA</div></div>
+      </div>
+    </div>
+  </div>
+</div></header>
+
+<section id="pain"><div class="wrap">
+  <div class="sec-head">
+    <div class="lbl">Why</div>
+    <h2>一套商品圖，不該花掉你一個晚上。</h2>
+  </div>
+  <div class="feat">
+    <div class="fcard"><div class="ic">🖼️</div><h3>白底主圖，一鍵去雜</h3><p>AI 自動辨識商品主體、移除背景雜物（連入鏡的寵物都能移掉），輸出符合蝦皮規範的純白主圖。</p></div>
+    <div class="fcard"><div class="ic">📑</div><h3>10 張描述圖成套</h3><p>痛點鉤子、三大賣點、競品對比、使用步驟、規格 CTA——整套版面與色調一致，不再東拼西湊。</p></div>
+    <div class="fcard"><div class="ic">✏️</div><h3>嫌哪張改哪張</h3><p>每張圖下方有輸入框，打「留白多一點」「主標改紅色」，那張圖就自動重做，不必重跑整套。</p></div>
+  </div>
+</div></section>
+
+<section id="how" style="background:var(--sand)"><div class="wrap">
+  <div class="sec-head">
+    <div class="lbl">How it works</div>
+    <h2>三步，從商品資料到整套圖文。</h2>
+  </div>
+  <div class="steps">
+    <div class="step"><div class="n">STEP 01</div><h3>貼資料、傳照片</h3><p>把商品名稱、賣點貼進聊天框，上傳 1~3 張商品照。AI 讀懂後整理出賣點與客群。</p></div>
+    <div class="step"><div class="n">STEP 02</div><h3>選風格</h3><p>AI 依商品屬性給出視覺風格選項，選一個，就開始生成整套圖文。</p></div>
+    <div class="step"><div class="n">STEP 03</div><h3>出圖、微調、下載</h3><p>白底主圖＋10 張描述圖逐一生成，逐張修改到滿意，一鍵打包 ZIP 下載上架。</p></div>
+  </div>
+</div></section>
+
+<section id="price"><div class="wrap">
+  <div class="sec-head" style="margin-left:auto;margin-right:auto;text-align:center">
+    <div class="lbl">Pricing</div>
+    <h2>買斷制，一次付費永久使用。</h2>
+  </div>
+  <div class="price-wrap">
+    <div class="plan">
+      <h3>一般版</h3>
+      <div class="early">早鳥限量 20 名</div>
+      <div class="price"><span class="now">NT$990</span><span class="was">NT$1,490</span></div>
+      <div class="unit">一次付費 · 永久使用 · 更新免費</div>
+      <ul>
+        <li>白底主圖（辨識主體＋去雜）</li>
+        <li>10 張描述圖一鍵生成</li>
+        <li>每張圖獨立修改</li>
+        <li>3 種視覺風格</li>
+        <li>本機暫存區、ZIP 打包</li>
+      </ul>
+      <button class="btn o buy" data-plan="basic_early">購買一般版</button>
+    </div>
+    <div class="plan hot">
+      <h3>PRO 版</h3>
+      <div class="early">早鳥限量 20 名</div>
+      <div class="price"><span class="now">NT$1,780</span><span class="was">NT$2,490</span></div>
+      <div class="unit">一次付費 · 永久使用 · 更新免費</div>
+      <ul>
+        <li>一般版全部功能</li>
+        <li class="pro">極簡攝影系（獨門版式）</li>
+        <li class="pro">每張圖提示詞透視（學寫法）</li>
+        <li>優先客服支援</li>
+      </ul>
+      <button class="btn p buy" data-plan="pro_early">購買 PRO 版</button>
+    </div>
+  </div>
+  <p style="text-align:center;font-size:13px;color:var(--sub);margin-top:22px">出圖費用走你自己的 Google 帳號（一套約 NT$15~30），我們不經手你的金流與密鑰。</p>
+</div></section>
+
+<section id="faq"><div class="wrap">
+  <div class="sec-head" style="margin-left:auto;margin-right:auto;text-align:center">
+    <div class="lbl">FAQ</div>
+    <h2>常見問題</h2>
+  </div>
+  <div class="faq">
+    <details class="q"><summary>跟我自己用 AI 做圖差在哪？</summary><p>差在不用會寫提示詞。工具內建整套電商圖文的版式與流程，你只要貼商品資料，10 張整套風格一致、中文字不出錯——這是自己丟提示詞很難穩定做到的。</p></details>
+    <details class="q"><summary>為什麼還要自己申請 Google Key？</summary><p>這是保護你：出圖費用直接走你自己的 Google 帳號，完全透明，我們碰不到你的 Key 也不經手費用。申請免費、一分鐘完成，工具內有教學。</p></details>
+    <details class="q"><summary>生成的圖能商用嗎？</summary><p>可以，生成圖可直接上架使用。建議上架前照常檢查文字內容正確。</p></details>
+    <details class="q"><summary>可以幾台裝置使用？</summary><p>授權碼不鎖裝置，自己的電腦、手機都能用；但請勿外流分享，系統偵測異常使用會停權。</p></details>
+    <details class="q"><summary>不滿意可以退嗎？</summary><p>所以才提供免費試用 5 次——試用即完整功能，確認符合需求再購買。授權碼發出後屬數位商品恕不退費。</p></details>
+  </div>
+</div></section>
+
+<section>
+  <div class="final">
+    <h2>先免費試 5 次，好用再買。</h2>
+    <p>不用註冊、不用信用卡，開啟就能用。</p>
+    <a class="btn p" id="finalTry" href="#">🎁 立即免費試用</a>
+    <a class="lnk" id="finalLine" href="#" target="_blank">有問題？加 LINE 詢問客服 →</a>
+  </div>
+</section>
+
+<footer><div class="wrap">
+  圖文生成室 AI · 蝦皮賣家的 AI 商品圖文工具<br>
+  <a id="footLine" href="#" target="_blank">客服 LINE</a> · 授權為數位商品，售出恕不退換
+</div></footer>
+
+<!-- 購買 Email modal -->
+<div class="modal" id="buyModal"><div class="box">
+  <button class="x" onclick="closeBuy()">×</button>
+  <h3 id="buyTitle">購買</h3>
+  <p>填寫 Email，付款成功後授權碼會顯示在付款完成頁，也會作為你的購買憑證。</p>
+  <label>Email</label>
+  <input type="email" id="buyEmail" placeholder="you@example.com">
+  <button class="btn p" style="width:100%" onclick="goPay()">前往付款</button>
+</div></div>
+
+<script>
+  document.querySelectorAll('#navTry,#heroTry,#finalTry').forEach(a=>a.href=TOOL_URL);
+  document.getElementById('finalLine').href=LINE_URL;
+  document.getElementById('footLine').href=LINE_URL;
+
+  let curPlan='basic_early';
+  const PLAN_NAMES={basic_early:'一般版（早鳥 NT$990）',pro_early:'PRO 版（早鳥 NT$1,780）'};
+  document.querySelectorAll('.buy').forEach(b=>b.onclick=()=>{
+    curPlan=b.dataset.plan;
+    document.getElementById('buyTitle').textContent='購買 '+PLAN_NAMES[curPlan];
+    document.getElementById('buyModal').classList.add('on');
+    document.getElementById('buyEmail').focus();
+  });
+  function closeBuy(){document.getElementById('buyModal').classList.remove('on');}
+  document.getElementById('buyModal').addEventListener('click',e=>{if(e.target.id==='buyModal')closeBuy();});
+  function goPay(){
+    const email=document.getElementById('buyEmail').value.trim();
+    if(!email||!/^[^@]+@[^@]+\.[^@]+$/.test(email)){alert('請輸入正確的 Email');return;}
+    // 導向 Worker 的 /pay，由後端建立訂單並自動送出綠界表單
+    window.location.href=API_URL+'/pay?plan='+curPlan+'&email='+encodeURIComponent(email);
+  }
+</script>
+</body>
+</html>
