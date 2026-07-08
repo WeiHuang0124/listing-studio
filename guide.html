@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Google Gemini API Key 申請教學 — 圖文生成室 AI</title>
+<meta name="description" content="手把手教你申請 Google Gemini API Key，含免費申請、付費升級、費用估算與安全須知。">
+<script>
+  const TOOL_URL='/';
+  const LINE_URL='https://lin.ee/Z0PW42V';
+  const AISTUDIO='https://aistudio.google.com/apikey';
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Zen+Kaku+Gothic+Antique:wght@700;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#16181D; --paper:#FAF8F3; --card:#FFFFFF; --line:#E7E3D9;
+  --sub:#6B6F78; --accent:#E8552F; --accent-d:#C33F1D; --mint:#0E7C66; --warn:#C9820E; --sand:#EFE7D6;
+  --mono:'JetBrains Mono',monospace; --disp:'Zen Kaku Gothic Antique',sans-serif; --sans:'Noto Sans TC',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--paper);color:var(--ink);line-height:1.75;-webkit-font-smoothing:antialiased}
+.wrap{max-width:760px;margin:0 auto;padding:0 24px}
+a{color:var(--accent)}
+
+nav{position:sticky;top:0;z-index:50;background:rgba(250,248,243,.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;height:60px;gap:16px;max-width:900px}
+.logo{font-family:var(--disp);font-weight:900;font-size:17px;text-decoration:none;color:var(--ink)}
+.logo b{color:var(--accent)}
+nav .sp{flex:1}
+.btn{display:inline-block;font-weight:700;font-size:14px;border:none;border-radius:10px;padding:10px 18px;cursor:pointer;text-decoration:none;transition:.15s}
+.btn.p{background:var(--accent);color:#fff}.btn.p:hover{background:var(--accent-d)}
+.btn.o{background:transparent;color:var(--ink);border:1.5px solid var(--ink)}.btn.o:hover{background:var(--ink);color:#fff}
+.btn.sm{padding:8px 14px;font-size:13px}
+
+header.top{padding:56px 0 32px}
+header.top .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.2em;color:var(--accent);text-transform:uppercase;margin-bottom:16px}
+header.top h1{font-family:var(--disp);font-weight:900;font-size:clamp(30px,5.5vw,46px);line-height:1.2;letter-spacing:-.02em;word-break:keep-all}
+header.top p{font-size:17px;color:var(--sub);margin-top:16px}
+
+.toc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin:8px 0 40px}
+.toc h2{font-size:14px;color:var(--sub);font-weight:700;margin-bottom:10px}
+.toc a{display:block;padding:6px 0;font-size:15px;font-weight:500;text-decoration:none;border-bottom:1px solid var(--line)}
+.toc a:last-child{border-bottom:none}
+.toc a:hover{color:var(--accent-d)}
+
+section{padding:20px 0 44px;border-bottom:1px solid var(--line)}
+section:last-of-type{border-bottom:none}
+.slabel{font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.15em;font-weight:500}
+section h2{font-family:var(--disp);font-weight:900;font-size:clamp(23px,4vw,30px);margin:8px 0 20px;letter-spacing:-.01em;word-break:keep-all}
+section h3{font-size:18px;font-weight:900;margin:26px 0 10px}
+section p{margin:12px 0;font-size:15.5px}
+section ol,section ul{margin:14px 0 14px 4px;padding-left:22px}
+section li{margin:10px 0;font-size:15.5px}
+section li b{color:var(--ink)}
+
+.step-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin:16px 0;position:relative}
+.step-card .num{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;background:var(--accent);color:#fff;border-radius:50%;font-family:var(--mono);font-weight:600;font-size:14px;margin-bottom:12px}
+.step-card h3{margin:0 0 8px;font-size:18px}
+.step-card p{margin:6px 0;font-size:15px;color:var(--sub)}
+.step-card code{background:var(--sand);padding:2px 8px;border-radius:6px;font-family:var(--mono);font-size:13px;color:var(--ink)}
+
+.callout{border-radius:12px;padding:16px 20px;margin:18px 0;font-size:14.5px;border-left:4px solid}
+.callout.tip{background:#E6F4EF;border-color:var(--mint)}
+.callout.warn{background:#FDF3E2;border-color:var(--warn)}
+.callout.danger{background:#FBE8E2;border-color:var(--accent)}
+.callout b{display:block;margin-bottom:4px}
+
+table{width:100%;border-collapse:collapse;margin:18px 0;font-size:14.5px}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line)}
+th{background:var(--sand);font-weight:700}
+td.mono,th.mono{font-family:var(--mono);font-size:13px}
+
+.cost{background:var(--ink);color:#fff;border-radius:16px;padding:28px;margin:22px 0;text-align:center}
+.cost .big{font-family:var(--disp);font-weight:900;font-size:38px;color:#fff;margin:6px 0}
+.cost .big .u{font-size:18px;color:#C9CCD2}
+.cost p{color:#C9CCD2;font-size:14px;margin:4px 0 0}
+
+.final{background:var(--sand);border-radius:18px;padding:36px;text-align:center;margin:36px 0}
+.final h2{font-family:var(--disp);font-weight:900;font-size:26px;word-break:keep-all}
+.final p{color:var(--sub);margin:12px 0 22px}
+
+footer{padding:32px 0 56px;text-align:center;color:var(--sub);font-size:13px}
+footer a{color:var(--sub)}
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <a class="logo" href="/home.html">圖文生成室 <b>AI</b></a>
+  <span class="sp"></span>
+  <a class="btn o sm" href="/home.html">回首頁</a>
+  <a class="btn p sm" id="navTry" href="#">開始使用</a>
+</div></nav>
+
+<header class="top"><div class="wrap">
+  <div class="eyebrow">SETUP GUIDE</div>
+  <h1>申請你的 Google Gemini API Key</h1>
+  <p>圖文生成室用你自己的 Google 帳號出圖，費用透明、我們不經手。這份教學帶你三分鐘完成申請，並說明免費額度、付費升級與安全須知。</p>
+</div></header>
+
+<div class="wrap">
+  <div class="toc">
+    <h2>本頁內容</h2>
+    <a href="#what">為什麼要自己申請 Key？</a>
+    <a href="#free">一、免費申請 API Key（3 分鐘）</a>
+    <a href="#cost">二、要花多少錢？費用估算</a>
+    <a href="#paid">三、升級付費（額度不夠時）</a>
+    <a href="#safe">四、安全須知（重要）</a>
+    <a href="#faq">常見問題</a>
+  </div>
+
+  <section id="what">
+    <div class="slabel">WHY</div>
+    <h2>為什麼要自己申請 Key？</h2>
+    <p>圖文生成室是「工具」，實際出圖是呼叫 Google 的 Gemini AI。我們讓每位使用者用自己的 Google API Key，這代表：</p>
+    <ul>
+      <li><b>費用完全透明</b>：出圖費用直接算在你自己的 Google 帳號，我們碰不到、也不從中抽成。</li>
+      <li><b>資料更安全</b>：你的 Key 只存在你這台裝置的瀏覽器，不會上傳到我們的伺服器。</li>
+      <li><b>額度自己掌控</b>：免費額度、付費升級都由你決定，用多少付多少。</li>
+    </ul>
+    <div class="callout tip">
+      <b>💡 好消息</b>
+      Google AI Studio 網頁介面與申請 Key 本身<b>永遠免費</b>，台灣可直接連線。多數輕量使用者靠免費額度就夠用。
+    </div>
+  </section>
+
+  <section id="free">
+    <div class="slabel">STEP BY STEP</div>
+    <h2>一、免費申請 API Key</h2>
+    <p>只要有 Google 帳號就能申請，全程約 3 分鐘、不需要信用卡。</p>
+
+    <div class="step-card">
+      <div class="num">1</div>
+      <h3>前往 Google AI Studio</h3>
+      <p>開啟 <a id="link1" href="#" target="_blank" rel="noopener">aistudio.google.com/apikey</a>，用你的 Google 帳號登入。若是第一次使用，會跳出使用條款，勾選同意後繼續。</p>
+    </div>
+
+    <div class="step-card">
+      <div class="num">2</div>
+      <h3>建立 API Key</h3>
+      <p>登入後點畫面上的 <code>Create API key</code>（建立 API 金鑰）。第一次使用時，Google 會自動幫你建立一個預設專案，直接用即可。</p>
+    </div>
+
+    <div class="step-card">
+      <div class="num">3</div>
+      <h3>複製並保存</h3>
+      <p>系統會產生一串 <code>AIza...</code> 開頭的金鑰。點右側複製，貼到你能找回的地方（例如記事本）。<b>這串就是你的 API Key。</b></p>
+    </div>
+
+    <div class="step-card">
+      <div class="num">4</div>
+      <h3>貼進圖文生成室</h3>
+      <p>回到工具，把這串 Key 貼進去。工具會驗證一次，成功後就記在這台裝置，之後不用再貼。</p>
+    </div>
+
+    <div class="callout warn">
+      <b>⚠️ 看到「Free tier」才有免費額度</b>
+      申請介面若顯示該 Key 的方案是 <b>Free tier</b> 或 <b>Unavailable</b>，代表可用免費額度。若顯示已綁定付費，是因為你的 Google 帳號曾建立過付費專案——這時到 Google Cloud 新建一個「不綁付費」的專案，在該專案底下建立 Key 即可拿回免費額度。
+    </div>
+  </section>
+
+  <section id="cost">
+    <div class="slabel">PRICING</div>
+    <h2>二、要花多少錢？</h2>
+    <p>圖文生成室出圖用的是 Gemini 的圖片生成模型。以官方費率估算，一張圖約 NT$1~1.3，實際費用依模型與尺寸而定：</p>
+
+    <div class="cost">
+      <p>一整套（白底主圖 ＋ 10 張描述圖）約</p>
+      <div class="big">NT$10<span class="u"> ~ 30</span></div>
+      <p>相當於一杯超商咖啡，就能生出整套商品圖文</p>
+    </div>
+
+    <p>而且免費額度通常足以應付試用與輕量使用。只有當你大量、頻繁出圖，超過每日免費上限（會出現 429 錯誤）時，才需要考慮升級付費。</p>
+
+    <div class="callout tip">
+      <b>💡 費率會變動</b>
+      Google 的模型與費率更新很快，最準確的數字以官方 <a href="https://ai.google.dev/gemini-api/docs/pricing" target="_blank" rel="noopener">定價頁</a> 為準。
+    </div>
+  </section>
+
+  <section id="paid">
+    <div class="slabel">UPGRADE</div>
+    <h2>三、升級付費（額度不夠時）</h2>
+    <p>如果你出圖量大、常遇到免費額度用盡（429 Too Many Requests），可以升級付費層，享有更高額度與更穩定的速度。步驟：</p>
+
+    <ol>
+      <li>到 Google AI Studio 的 <b>API Keys</b> 頁面，找到你的 Key，點右側 <code>Set up Billing</code>（設定帳單）。</li>
+      <li>依畫面選擇地區、綁定信用卡，建立 Cloud 帳單帳戶。</li>
+      <li>2026 年起 Google 採 <b>Prepay（預付）</b> 制：先儲值credits，出圖費用即時從餘額扣抵。餘額歸零時 API 會停止服務（不會無預警爆帳單）。</li>
+    </ol>
+
+    <div class="callout danger">
+      <b>🚨 付費層沒有硬性花費上限</b>
+      付費（Postpay）模式下，Google 目前只提供「預算警示」Email 通知，<b>不會在超過額度時自動停止服務</b>。強烈建議：<br>
+      ① 優先用 <b>Prepay 預付</b> 制（餘額用完就停，最安全）<br>
+      ② 到 Google Cloud Billing 設定預算警示（例如 $5、$8、$10 時通知你）
+    </div>
+
+    <div class="callout tip">
+      <b>💡 新用戶 $300 試用金</b>
+      Google Cloud 新用戶常有 $300 美元、90 天的試用抵用金。但請注意：自 2026 年 3 月起，部分帳號的 Gemini API 費用可能被排除在此優惠外，實際以你 Google Cloud 帳單頁的顯示為準。
+    </div>
+  </section>
+
+  <section id="safe">
+    <div class="slabel">SECURITY</div>
+    <h2>四、安全須知</h2>
+    <p>API Key 是存取你 Google 帳單資源的唯一憑證，等於你帳戶的鑰匙。請務必：</p>
+    <ul>
+      <li><b>不要외流分享</b>：一旦外流，他人可用你的 Key 大量出圖，帳單算你的。</li>
+      <li><b>不要貼在公開場合</b>：不要把 Key 貼到公開的網頁、社群、GitHub、聊天群組。</li>
+      <li><b>本工具的做法</b>：你的 Key 只存在你這台裝置的瀏覽器本機，不會上傳、不會存進我們的檔案；工具右上角可隨時一鍵清除。</li>
+      <li><b>懷疑外流時</b>：到 Google AI Studio 刪除舊 Key、重新產生一組即可。</li>
+    </ul>
+    <div class="callout warn">
+      <b>⚠️ 2026 金鑰新制</b>
+      Google 自 2026 年起將 API Key 改為更安全的「Auth keys」，新申請的 Key 都是這種。若你有很舊的 Key 出現 Blocked 標記，重新建立一組新的即可。
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="slabel">FAQ</div>
+    <h2>常見問題</h2>
+    <h3>Q：一定要付費嗎？</h3>
+    <p>不一定。免費額度足以試用與輕量使用，只有大量頻繁出圖時才需要升級。</p>
+    <h3>Q：申請要收費或綁卡嗎？</h3>
+    <p>免費層申請 Key 不需要信用卡。只有升級付費層時才需要綁定付款方式。</p>
+    <h3>Q：Key 貼進工具安全嗎？</h3>
+    <p>安全。Key 只存在你這台裝置的瀏覽器，不會上傳到我們或任何第三方伺服器。</p>
+    <h3>Q：換一台電腦要重新貼 Key 嗎？</h3>
+    <p>是的，因為 Key 存在本機。換裝置時重新貼上同一組 Key 即可。</p>
+  </section>
+
+  <div class="final">
+    <h2>準備好了嗎？</h2>
+    <p>申請好 Key，回到工具貼上就能開始生成整套商品圖文。</p>
+    <a class="btn p" id="finalTry" href="#">開始使用圖文生成室</a>
+    <div style="margin-top:14px"><a id="finalLine" href="#" target="_blank" style="font-size:13px">申請卡關？加 LINE 問客服 →</a></div>
+  </div>
+</div>
+
+<footer><div class="wrap">
+  圖文生成室 AI · 電商賣家的 AI 商品圖文工具<br>
+  費率與規則以 Google 官方為準，本頁僅供操作參考
+</div></footer>
+
+<script>
+  document.getElementById('link1').href=AISTUDIO;
+  document.querySelectorAll('#navTry,#finalTry').forEach(a=>a.href=TOOL_URL);
+  document.getElementById('finalLine').href=LINE_URL;
+</script>
+</body>
+</html>
