@@ -270,11 +270,14 @@ footer a{color:var(--sub)}
   <input type="email" id="buyEmail" placeholder="you@example.com">
   <label style="margin-top:4px">付款方式</label>
   <div id="payMethods" style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px">
+    <button class="paym" data-m="stripe" style="display:flex;align-items:center;gap:10px;border:1.5px solid var(--line);border-radius:11px;padding:14px 16px;cursor:pointer;background:#fff;font-family:var(--sans);font-size:15px;font-weight:700;text-align:left">
+      <span style="font-size:20px">💳</span> 信用卡付款 <span style="margin-left:auto;font-size:12px;color:var(--mint);font-weight:500">自動開通 →</span>
+    </button>
     <button class="paym" data-m="jko" style="display:flex;align-items:center;gap:10px;border:1.5px solid var(--line);border-radius:11px;padding:14px 16px;cursor:pointer;background:#fff;font-family:var(--sans);font-size:15px;font-weight:700;text-align:left">
       <span style="font-size:20px">📱</span> 街口支付 <span style="margin-left:auto;font-size:12px;color:var(--mint);font-weight:500">立即付款 →</span>
     </button>
     <div style="display:flex;align-items:center;gap:10px;border:1.5px dashed var(--line);border-radius:11px;padding:14px 16px;background:#F7F5F0;font-size:15px;font-weight:700;color:#B4B0A6">
-      <span style="font-size:20px;filter:grayscale(1);opacity:.6">💳</span> 綠界（信用卡/ATM/超商） <span style="margin-left:auto;font-size:12px;color:var(--warn);font-weight:500">🔧 維護中</span>
+      <span style="font-size:20px;filter:grayscale(1);opacity:.6">🏪</span> 綠界（ATM/超商） <span style="margin-left:auto;font-size:12px;color:var(--warn);font-weight:500">🔧 維護中</span>
     </div>
   </div>
 </div></div>
@@ -297,6 +300,13 @@ footer a{color:var(--sub)}
 
   const JKO_URL='https://service.jkopay.com/r/transfer?j=Transfer:902182952';
   const PLAN_AMT={basic_early:990,pro_early:1780};
+
+  // 信用卡（Stripe）：填 Email → 導向 Worker 建立 Checkout → Stripe 官方付款頁 → 自動發碼
+  document.querySelector('.paym[data-m="stripe"]').onclick=()=>{
+    const email=document.getElementById('buyEmail').value.trim();
+    if(!email||!/^[^@]+@[^@]+\.[^@]+$/.test(email)){alert('請先填寫正確的 Email');return;}
+    window.location.href=API_URL+'/stripe-pay?plan='+curPlan+'&email='+encodeURIComponent(email);
+  };
 
   // 街口個人轉帳：填Email→開街口轉帳→引導回LINE通知（半自動，由賣家確認收款後發碼）
   document.querySelector('.paym[data-m="jko"]').onclick=()=>{
