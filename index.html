@@ -213,7 +213,7 @@ v1.4.x 2026-07-03 本機暫存區（收藏/資料夾/ZIP）；按鈕回應修復
 v1.3.0 2026-07-03 忽略參考圖後製文字規則；版本號與更新日誌
 v1.0~1.2 2026-07-03 聊天式三階段流程、白底主圖、模特選項、監測
 ════════════════════════════════ */
-const VERSION='v2.6.1';
+const VERSION='v2.6.2';
 /* ★★★ 部署 Cloudflare Worker 後，把 Worker 網址貼在下面引號內 ★★★
    例如：const WORKER_URL='https://listing-studio-api.你的帳號.workers.dev'; */
 const WORKER_URL='https://listing-studio-ai.senmao.workers.dev';
@@ -501,6 +501,8 @@ $('#keyBtn').onclick=()=>{const k=prompt('貼上 Gemini API Key：',state.key);i
 $('#clearKeyBtn').onclick=()=>{
   if(!confirm('確定要從這台電腦清除已儲存的 API Key？'))return;
   store.k='';state.key='';
+  /* 一併重置權限與工作階段，避免殘留的高權限帶到下一輪 */
+  state.sid='';state.boss=false;state.pro=state.trial?false:state.pro;
   $('#keyBtn').classList.remove('ok');$('#keyBtn').textContent='🔑 設定 API Key';
   state.stage='key';
   addMsg('bot','🗑️ 已清除這台電腦上儲存的 Key。');
